@@ -1272,6 +1272,13 @@ export function demoConfig(): Config {
     appleTeamId: process.env.EAIT__BACKEND__APPLE_TEAM_ID ?? "",
     appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? "",
     applePrivateKey: applePrivateKeyFromEnv(),
+    // The Android return's hops (ieat-app#2434), for the same argument: a demo that cannot serve
+    // assetlinks.json cannot exercise the App Link hop it certifies, and the allowlist decides
+    // what the scheme bounce may be named.
+    androidAppSchemes: process.env.EAIT__BACKEND__ANDROID_APP_SCHEMES === undefined
+      ? configDefaults().androidAppSchemes : list("EAIT__BACKEND__ANDROID_APP_SCHEMES"),
+    androidPackage: process.env.EAIT__BACKEND__ANDROID_PACKAGE ?? configDefaults().androidPackage,
+    androidCertFingerprints: list("EAIT__BACKEND__ANDROID_CERT_FINGERPRINTS").map((f) => f.toUpperCase()),
     webPaywall: webPaywallFromEnv(),
     // Same argument — "works in demo, untested in production" is the shape of every configuration
     // bug that ships. The privacy link `/start` renders comes off this.
