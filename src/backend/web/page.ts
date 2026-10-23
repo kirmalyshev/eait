@@ -28,3 +28,4 @@ export * from "./page/chat.ts";
 export * from "./page/plan.ts";
 export * from "./page/country.ts";
 export * from "./page/referral.ts";
+export * from "./page/applink.ts";

@@ -4962,3 +4962,67 @@ export const pageCopyFor = (lang: Lang): PageCopy => t(lang)(PAGE_COPY_BY_LANG);
  * NO language reach for: the shell's markup tests, and the claims gate, which can only read English.
  */
 export const PAGE_COPY = EN;
+
+/**
+ * The Android App Link landing's own words (ieat-app#2434). Reached when the verified https return
+ * did NOT deliver into the app — unverified link, or nothing installed — its sentences say what is
+ * true: the token arrived in this browser, the app does not have it, and the person's own tap on
+ * the link is what carries it across. "You are signed in" would be a lie here: nobody is, yet.
+ */
+export interface AppLinkCopy {
+  /** The heading and <title>: this is a step, not a destination. */
+  title: string;
+  /** The instruction above the link — the tap is theirs to make. */
+  lead: string;
+  /** The link itself, pointing at the same verified URL the OS refused to hand over. */
+  link: string;
+  /** The way out when nothing answers the tap — no install, no claim on the URL. */
+  install: string;
+}
+
+export const APPLINK_COPY_BY_LANG: Localized<AppLinkCopy> = {
+  en: { title: "One more step", lead: "Tap to finish signing in to eait.", link: "Return to eait", install: "No eait on this device? Install the app and sign in again." },
+  fr: { title: "Une étape de plus", lead: "Touchez pour terminer la connexion à eait.", link: "Retour à eait", install: "Pas d'app eait sur cet appareil ? Installez-la et reconnectez-vous." },
+  de: { title: "Noch ein Schritt", lead: "Tippe, um die Anmeldung bei eait abzuschließen.", link: "Zurück zu eait", install: "Kein eait auf diesem Gerät? Installiere die App und melde dich erneut an." },
+  it: { title: "Ancora un passaggio", lead: "Tocca per completare l'accesso a eait.", link: "Torna a eait", install: "Nessuna app eait su questo dispositivo? Installala e accedi di nuovo." },
+  es: { title: "Un paso más", lead: "Toca para terminar de iniciar sesión en eait.", link: "Volver a eait", install: "¿No tienes eait en este dispositivo? Instala la app e inicia sesión de nuevo." },
+  vi: { title: "Thêm một bước nữa", lead: "Nhấn để hoàn tất đăng nhập vào eait.", link: "Quay lại eait", install: "Không có eait trên thiết bị này? Hãy cài đặt ứng dụng và đăng nhập lại." },
+  id: { title: "Satu langkah lagi", lead: "Ketuk untuk menyelesaikan masuk ke eait.", link: "Kembali ke eait", install: "Tidak ada eait di perangkat ini? Pasang aplikasinya dan masuk lagi." },
+  ru: { title: "Ещё один шаг", lead: "Нажмите, чтобы завершить вход в eait.", link: "Вернуться в eait", install: "Нет eait на этом устройстве? Установите приложение и войдите снова." },
+  "pt-BR": { title: "Só mais um passo", lead: "Toque para concluir o login no eait.", link: "Voltar ao eait", install: "Sem o app eait neste aparelho? Instale e entre de novo." },
+  ja: { title: "あと一歩", lead: "タップして eait へのログインを完了", link: "eait に戻る", install: "このデバイスに eait がない場合は、アプリをインストールしてもう一度ログインしてください。" },
+  ko: { title: "마지막 한 단계", lead: "눌러서 eait 로그인 완료", link: "eait로 돌아가기", install: "이 기기에 eait가 없나요? 앱을 설치하고 다시 로그인하세요." },
+  "zh-Hans": { title: "还差一步", lead: "点按即可完成 eait 登录。", link: "返回 eait", install: "此设备上没有 eait？请安装应用并重新登录。" },
+  "zh-Hant": { title: "還差一步", lead: "點一下即可完成 eait 登入。", link: "返回 eait", install: "這台裝置上沒有 eait？請安裝 App 並重新登入。" },
+  tr: { title: "Bir adım kaldı", lead: "eait girişini tamamlamak için dokunun.", link: "eait'e dön", install: "Bu cihazda eait yok mu? Uygulamayı yükleyip tekrar giriş yapın." },
+  pl: { title: "Jeszcze jeden krok", lead: "Dotknij, aby dokończyć logowanie do eait.", link: "Wróć do eait", install: "Nie masz eait na tym urządzeniu? Zainstaluj aplikację i zaloguj się ponownie." },
+  nl: { title: "Nog één stap", lead: "Tik om het inloggen bij eait af te ronden.", link: "Terug naar eait", install: "Geen eait op dit apparaat? Installeer de app en log opnieuw in." },
+  uk: { title: "Ще один крок", lead: "Торкніться, щоб завершити вхід до eait.", link: "Повернутися до eait", install: "Немає eait на цьому пристрої? Встановіть застосунок і увійдіть знову." },
+  sv: { title: "Ett steg kvar", lead: "Tryck för att slutföra inloggningen till eait.", link: "Tillbaka till eait", install: "Ingen eait på den här enheten? Installera appen och logga in igen." },
+  th: { title: "อีกหนึ่งขั้นตอน", lead: "แตะเพื่อเข้าสู่ระบบ eait ให้เสร็จสมบูรณ์", link: "กลับไปที่ eait", install: "ไม่มี eait บนอุปกรณ์นี้? ติดตั้งแอปแล้วเข้าสู่ระบบอีกครั้ง" },
+  hi: { title: "बस एक क़दम और", lead: "eait में साइन इन पूरा करने के लिए टैप करें।", link: "eait पर वापस जाएँ", install: "इस डिवाइस पर eait नहीं है? ऐप इंस्टॉल करें और फिर से साइन इन करें।" },
+  cs: { title: "Ještě jeden krok", lead: "Klepnutím dokončete přihlášení do eait.", link: "Zpět do eait", install: "Nemáte na tomto zařízení eait? Nainstalujte aplikaci a přihlaste se znovu." },
+  ro: { title: "Încă un pas", lead: "Atinge pentru a finaliza conectarea la eait.", link: "Înapoi la eait", install: "Nu ai eait pe acest dispozitiv? Instalează aplicația și conectează-te din nou." },
+  el: { title: "Ένα βήμα ακόμη", lead: "Πάτα για να ολοκληρώσεις τη σύνδεση στο eait.", link: "Πίσω στο eait", install: "Δεν υπάρχει eait σε αυτή τη συσκευή; Εγκατάστησε την εφαρμογή και σύνδεσου ξανά." },
+  hu: { title: "Még egy lépés", lead: "Koppints az eait-bejelentkezés befejezéséhez.", link: "Vissza az eaitbe", install: "Nincs eait ezen a készüléken? Telepítsd az alkalmazást és jelentkezz be újra." },
+  da: { title: "Et skridt tilbage", lead: "Tryk for at fuldføre login til eait.", link: "Tilbage til eait", install: "Ingen eait på denne enhed? Installér appen og log ind igen." },
+  fi: { title: "Vielä yksi vaihe", lead: "Viimeistele eait-kirjautuminen napauttamalla.", link: "Takaisin eaitiin", install: "Ei eaitia tällä laitteella? Asenna sovellus ja kirjaudu uudelleen." },
+  no: { title: "Ett steg igjen", lead: "Trykk for å fullføre innloggingen til eait.", link: "Tilbake til eait", install: "Ingen eait på denne enheten? Installer appen og logg inn igjen." },
+  sk: { title: "Ešte jeden krok", lead: "Klepnutím dokončite prihlásenie do eait.", link: "Späť do eait", install: "Nemáte na tomto zariadení eait? Nainštalujte aplikáciu a prihláste sa znova." },
+  hr: { title: "Još jedan korak", lead: "Dodirni za dovršetak prijave u eait.", link: "Natrag u eait", install: "Nema eaita na ovom uređaju? Instaliraj aplikaciju i prijavi se ponovno." },
+  sl: { title: "Še en korak", lead: "Tapni za dokončanje prijave v eait.", link: "Nazaj v eait", install: "Ni eaita na tej napravi? Namesti aplikacijo in se znova prijavi." },
+  ca: { title: "Un pas més", lead: "Toca per acabar d'iniciar sessió a eait.", link: "Torna a eait", install: "No tens eait en aquest dispositiu? Instal·la l'aplicació i inicia sessió de nou." },
+  ms: { title: "Satu langkah lagi", lead: "Ketuk untuk melengkapkan log masuk ke eait.", link: "Kembali ke eait", install: "Tiada eait pada peranti ini? Pasang apl itu dan log masuk semula." },
+  "pt-PT": { title: "Só mais um passo", lead: "Toca para concluíres o início de sessão no eait.", link: "Voltar ao eait", install: "Não tens a app eait neste dispositivo? Instala-a e inicia sessão de novo." },
+  bn: { title: "আরও এক ধাপ বাকি", lead: "eait-এ সাইন ইন শেষ করতে ট্যাপ করুন।", link: "eait-এ ফিরে যান", install: "এই ডিভাইসে eait নেই? অ্যাপটি ইনস্টল করে আবার সাইন ইন করুন।" },
+  gu: { title: "હજુ એક પગલું બાકી", lead: "eait માં સાઇન ઇન પૂરું કરવા ટૅપ કરો.", link: "eait પર પાછા જાઓ", install: "આ ડિવાઇસ પર eait નથી? એપ ઇન્સ્ટોલ કરી ફરીથી સાઇન ઇન કરો." },
+  kn: { title: "ಇನ್ನೂ ಒಂದು ಹಂತ ಬಾಕಿ", lead: "eait ಗೆ ಸೈನ್ ಇನ್ ಮುಗಿಸಲು ಟ್ಯಾಪ್ ಮಾಡಿ.", link: "eait ಗೆ ಹಿಂತಿರುಗಿ", install: "ಈ ಸಾಧನದಲ್ಲಿ eait ಇಲ್ಲವೇ? ಅ್ಯಾಪ್ ಅನ್ನು ಸ್ಥಾಪಿಸಿ ಮತ್ತೆ ಸೈನ್ ಇನ್ ಮಾಡಿ." },
+  ml: { title: "ഇനിയും ഒരു ഘട്ടം", lead: "eait-ലേക്കുള്ള സൈൻ ഇൻ പൂർത്തിയാക്കാൻ ടാപ്പ് ചെയ്യുക.", link: "eait-ലേക്ക് മടങ്ങുക", install: "ഈ ഉപകരണത്തില് eait ഇല്ലേ? ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്ത് വീണ്ടും സൈൻ ഇൻ ചെയ്യുക." },
+  mr: { title: "आणखी एक पाऊल", lead: "eait मध्ये साइन इन पूर्ण करण्यासाठी टॅप करा.", link: "eait वर परत जा", install: "या डिव्हाइसवर eait नाही? अ‍ॅप इन्स्टॉल करा आणि पुन्हा साइन इन करा." },
+  or: { title: "ଆଉ ଗୋଟିଏ ପାଦ ବାକି", lead: "eait ରେ ସାଇନ୍ ଇନ୍ ଶେଷ କରିବାକୁ ଟ୍ୟାପ୍ କରନ୍ତୁ।", link: "eait କୁ ଫେରନ୍ତୁ", install: "ଏହି ଡିଭାଇସ୍‌ରେ eait ନାହିଁ? ଆପ୍ ଇନ୍‌ଷ୍ଟଲ୍ କରି ପୁଣି ସାଇନ୍ ଇନ୍ କରନ୍ତୁ।" },
+  pa: { title: "ਇੱਕ ਹੋਰ ਕਦਮ ਬਾਕੀ", lead: "eait ਵਿੱਚ ਸਾਈਨ ਇਨ ਪੂਰਾ ਕਰਨ ਲਈ ਟੈਪ ਕਰੋ।", link: "eait ਉੱਤੇ ਵਾਪਸ ਜਾਓ", install: "ਇਸ ਡਿਵਾਈਸ 'ਤੇ eait ਨਹੀਂ ਹੈ? ਐਪ ਇੰਸਟਾਲ ਕਰੋ ਅਤੇ ਫਿਰ ਸਾਈਨ ਇਨ ਕਰੋ।" },
+  ta: { title: "இன்னும் ஒரு படி", lead: "eait-ல் உள்நுழைவை முடிக்க தட்டவும்.", link: "eait-க்குத் திரும்பு", install: "இந்த சாதனத்தில் eait இல்லையா? ஆப்ஸை நிறுவி மீண்டும் உள்நுழையவும்." },
+  te: { title: "ఇంకో అడుగు మాత్రమే", lead: "eait లో సైన్ ఇన్ పూర్తి చేయడానికి నొక్కండి.", link: "eait కు తిరిగి వెళ్ళండి", install: "ఈ పరికరంలో eait లేదా? యాప్ ఇన్‌స్టాల్ చేసి మళ్లీ సైన్ ఇన్ చేయండి." },
+};
+
+export const appLinkCopyFor = (lang: Lang): AppLinkCopy => t(lang)(APPLINK_COPY_BY_LANG);

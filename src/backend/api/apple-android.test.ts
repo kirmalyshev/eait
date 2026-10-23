@@ -159,11 +159,15 @@ describe("the App Link's landing", () => {
     // taps the same verified URL back into the app, a gesture Android delivers even here.
     expect(res.headers.get("location")).toBeNull();
     const html = await res.text();
-    expect(html).toContain(`href="https://api.eait.fit${ROUTES.authAppleAndroidApp}?state=${STATE}&id_token=tok"`);
-    expect(html).toContain("Install the app");
+    // The kit page's href — `escape` writes `&` as `&amp;` — and the words are the table's
+    // English, never "signed in": the token reached this browser, not the app.
+    expect(html).toContain(`href="https://api.eait.fit${ROUTES.authAppleAndroidApp}?state=${STATE}&amp;id_token=tok"`);
+    expect(html).toContain("One more step");
+    expect(html).toContain("Tap to finish signing in to eait.");
+    expect(html).toContain("Install the app and sign in again.");
     // Apple's error is carried to the tap the same way the token is.
     const err = await get(h, `${ROUTES.authAppleAndroidApp}?state=${STATE}&error=user_cancelled_authorize`);
-    expect(await err.text()).toContain(`error=user_cancelled_authorize`);
+    expect(await err.text()).toContain("error=user_cancelled_authorize");
     // Nothing to hand back is not found, and the page exists only where an App Link does.
     expect((await get(h, `${ROUTES.authAppleAndroidApp}?id_token=tok`)).status).toBe(404);
     expect((await get(h, `${ROUTES.authAppleAndroidApp}?state=x`)).status).toBe(404);

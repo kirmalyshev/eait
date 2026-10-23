@@ -28,7 +28,8 @@ import {
   MAX_FOOD_QUERY, FOOD_LOG_MAX_GRAMS, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
   type ReferralRedeemRequest, type ReferralSharedRequest,
 } from "@eait/shared";
-import { narrowLang } from "@eait/shared";
+import { acceptLang, narrowLang } from "@eait/shared";
+import { appLinkLanding, html } from "../web/page.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { emailSignInEnabled } from "../mail/choose.ts";
 import { isCalendarDate } from "@eait/shared";
@@ -535,7 +536,9 @@ export function createRouter(
           // the link unverified, or no install. NEVER a redirect into a custom scheme: that is
           // exactly the case where a foreign app claiming `eait` is the only receiver. What a
           // person gets instead is this page and a link THEY tap — a user gesture is what hands a
-          // verified App Link to the app — plus the way to install when nothing answers.
+          // verified App Link to the app — plus the way to install when nothing answers. The page
+          // is a real one: the kit, the languages, the CSP `html()` gives every page of this
+          // origin's, because anything a user reads is user-facing however short the path to it.
           if (!appLinkReady) return json({ error: "not found" }, 404);
           const state = url.searchParams.get("state") ?? "";
           if (!OAUTH_TOKEN.test(state)) return json({ error: "not found" }, 404);
@@ -544,11 +547,7 @@ export function createRouter(
             ? { state, id_token: idToken }
             : { state, error: url.searchParams.get("error") ?? "no-token" });
           const href = `${publicOrigin(req)}${ROUTES.authAppleAndroidApp}?${back.toString()}`;
-          const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>eait</title><meta name="robots" content="noindex"></head><body style="font-family:system-ui,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;text-align:center"><main><p>You are signed in.</p><p><a href="${href}">Return to eait</a></p><p>No eait on this device? Install the app and sign in again.</p></main></body></html>`;
-          return new Response(html, {
-            status: 200,
-            headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
-          });
+          return html(appLinkLanding(href, acceptLang(req.headers.get("accept-language"))));
         }
         if (req.method === "POST" && pathname === ROUTES.authAppleAndroidReturn) {
           // Size and type checked BEFORE `formData()` buffers the body, as `/start`'s Apple bridge
