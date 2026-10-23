@@ -2385,3 +2385,64 @@ describe("refer a friend (#899)", () => {
     expect((await post(ROUTES.referralShared, { via: "copy" })).status).toBe(401);
   });
 });
+
+describe("store-review sign-in (eait#713)", () => {
+  const REVIEW = { storeReviewEmail: "review@eait.fit", storeReviewCode: "246810" };
+  function reviewRouter(overrides: Partial<Config>) {
+    const s = memoryStore();
+    const sent: { to: string; code: string }[] = [];
+    const h = createRouter(
+      {
+        store: s, config: { ...CONFIG, authRateLimitPerHour: 1000, ...overrides }, llm: demoPorts(), push: fakePush(),
+        mail: { async sendSignInCode(to, code) { sent.push({ to, code }); } },
+      },
+      s, testVerifier,
+    );
+    const post = (route: string, body: unknown) =>
+      h(new Request(url(route), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const verify = (email: string, code: string) => post(ROUTES.authEmailVerify, { email, code, terms: true });
+    const active = async (token: string) => {
+      const res = await h(new Request(url(ROUTES.profile), { headers: { authorization: `Bearer ${token}` } }));
+      return ((await res.json()) as { entitlement: { active: boolean } }).entitlement.active;
+    };
+    return { post, verify, active, sent };
+  }
+
+  it("is off unless both values are set", async () => {
+    for (const half of [{ storeReviewEmail: REVIEW.storeReviewEmail }, { storeReviewCode: REVIEW.storeReviewCode }]) {
+      const r = reviewRouter(half);
+      expect((await r.verify(REVIEW.storeReviewEmail, REVIEW.storeReviewCode)).status).toBe(410);
+      expect((await r.post(ROUTES.authEmailCode, { email: REVIEW.storeReviewEmail })).status).toBe(204);
+      expect(r.sent.map((m) => m.to)).toEqual([REVIEW.storeReviewEmail]);
+    }
+  });
+
+  it("signs in the configured address with the fixed code, mails nothing, and comps the paid tier", async () => {
+    const r = reviewRouter(REVIEW);
+    expect((await r.post(ROUTES.authEmailCode, { email: " Review@EAIT.fit " })).status).toBe(204);
+    expect(r.sent).toEqual([]);
+    const res = await r.verify(" Review@EAIT.fit ", " 246810 ");
+    expect(res.status).toBe(200);
+    expect(await r.active(((await res.json()) as { token: string }).token)).toBe(true);
+  });
+
+  it("cannot be reached with a wrong code, and wrong tries do not burn it", async () => {
+    const r = reviewRouter(REVIEW);
+    for (const wrong of ["246811", "24681", "2468100", "000000", "", "x"]) {
+      const res = await r.verify(REVIEW.storeReviewEmail, wrong);
+      expect(res.status).not.toBe(200);
+    }
+    expect((await r.verify(REVIEW.storeReviewEmail, "000000")).status).toBe(401);
+    expect((await r.verify(REVIEW.storeReviewEmail, REVIEW.storeReviewCode)).status).toBe(200);
+  });
+
+  it("works only for that address: every other one keeps the mailed code, and is not comped", async () => {
+    const r = reviewRouter(REVIEW);
+    expect((await r.verify("someone@example.com", REVIEW.storeReviewCode)).status).toBe(410);
+    expect((await r.post(ROUTES.authEmailCode, { email: "someone@example.com" })).status).toBe(204);
+    expect(r.sent.map((m) => m.to)).toEqual(["someone@example.com"]);
+    const res = await r.verify("someone@example.com", r.sent[0]!.code);
+    expect(res.status).toBe(200);
+    expect(await r.active(((await res.json()) as { token: string }).token)).toBe(false);
+  });
+});

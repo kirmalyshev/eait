@@ -539,6 +539,15 @@ export interface Config {
    * disables it.
    */
   emailCodesPerDay: number;
+  /**
+   * The store-review sign-in (eait#713): ONE address whose code is `storeReviewCode` instead of a
+   * mailed one, for the App Store and Play reviewers, who cannot read an inbox. Off unless BOTH
+   * are set. The account it signs into has the paid tier comped (`entitlementFor`). Stored
+   * normalised, as `identities` keys on it.
+   */
+  storeReviewEmail: string;
+  /** That address's fixed code. A secret: `redact()` masks it, and nothing prints it. */
+  storeReviewCode: string;
 
 }
 
@@ -758,6 +767,8 @@ export function configDefaults(): Config {
     mailFrom: "eait <login@eait.fit>",
     emailCodesPerHour: 5,
     emailCodesPerDay: 10,
+    storeReviewEmail: "",
+    storeReviewCode: "",
   };
 }
 
@@ -994,6 +1005,8 @@ export function loadConfig(): Config {
     mailFrom: process.env.EAIT__BACKEND__MAIL_FROM ?? d.mailFrom,
     emailCodesPerHour: int("EAIT__BACKEND__EMAIL_CODES_PER_HOUR", d.emailCodesPerHour),
     emailCodesPerDay: int("EAIT__BACKEND__EMAIL_CODES_PER_DAY", d.emailCodesPerDay),
+    storeReviewEmail: (process.env.EAIT__BACKEND__STORE_REVIEW_EMAIL ?? d.storeReviewEmail).trim().toLowerCase(),
+    storeReviewCode: (process.env.EAIT__BACKEND__STORE_REVIEW_CODE ?? d.storeReviewCode).trim(),
   };
 }
 
@@ -1065,7 +1078,7 @@ export function telegramBotTokenFromEnv(): string {
 export function redact(c: Config): Record<string, unknown> {
   const {
     llmApiKey: _k, revenueCatWebhookToken: _rc,
-    expoPushAccessToken: _e, webPushVapidPrivateKey: _wp, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, resendApiKey: _rs, databaseUrl,
+    expoPushAccessToken: _e, webPushVapidPrivateKey: _wp, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, resendApiKey: _rs, storeReviewCode: _sr, databaseUrl,
     ...rest
   } = c;
   return {
@@ -1091,6 +1104,7 @@ export function redact(c: Config): Record<string, unknown> {
     telegramBotToken: c.telegramBotToken === "" ? "(unset — the Telegram connector is off)" : "***",
     fooddbReadKey: c.fooddbReadKey === "" ? "(unset — the catalog refresh is off)" : "***",
     resendApiKey: c.resendApiKey === "" ? "(unset — mail is logged)" : "***",
+    storeReviewCode: c.storeReviewCode === "" ? "(unset — store-review sign-in is off)" : "***",
   };
 }
 

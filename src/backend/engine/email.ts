@@ -19,6 +19,8 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import type { AuthProviderResponse, Lang } from "@eait/shared";
+import type { Config } from "../config.ts";
+import { timingSafeEqual } from "../auth/timingsafe.ts";
 import { hashToken } from "../auth/tokens.ts";
 import { AuthError } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -40,6 +42,14 @@ export const EMAIL_ADDRESS = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(\.
 
 /** The address's one stored form: trimmed and lowercased, the subject `identities` keys on. */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+/**
+ * The store-review address (eait#713): on only when BOTH settings are set, and only for that exact
+ * address. Its code is `storeReviewCode`, never mailed, never burnt — a reviewer locked out by five
+ * typos fails the review. What bounds guessing it is the route's per-address `auth` limit.
+ */
+export const isStoreReviewer = (config: Pick<Config, "storeReviewEmail" | "storeReviewCode">, email: string): boolean =>
+  config.storeReviewEmail !== "" && config.storeReviewCode !== "" && normalizeEmail(email) === config.storeReviewEmail;
 
 /**
  * Six digits from a CSPRNG, without modulo bias.
@@ -81,6 +91,7 @@ export async function sendEmailCode(
   lang: Lang,
 ): Promise<number | null> {
   const email = normalizeEmail(rawEmail);
+  if (isStoreReviewer(deps.config, email)) return null;
   const code = newEmailCode();
   const wait = await deps.store.putEmailCode(
     email,
@@ -115,8 +126,13 @@ export async function verifyEmailCode(
 ): Promise<AuthProviderResponse | { kind: "code-wrong" | "code-dead" }> {
   if (!consent.terms) throw new AuthError("terms-required");
   const email = normalizeEmail(rawEmail);
-  const spent = await deps.store.spendEmailCode(email, await hashToken(rawCode.trim()), EMAIL_CODE_ATTEMPTS);
-  if (spent !== "ok") return { kind: spent === "wrong" ? "code-wrong" : "code-dead" };
+  if (isStoreReviewer(deps.config, email)) {
+    const ok = timingSafeEqual(await hashToken(rawCode.trim()), await hashToken(deps.config.storeReviewCode));
+    if (!ok) return { kind: "code-wrong" };
+  } else {
+    const spent = await deps.store.spendEmailCode(email, await hashToken(rawCode.trim()), EMAIL_CODE_ATTEMPTS);
+    if (spent !== "ok") return { kind: spent === "wrong" ? "code-wrong" : "code-dead" };
+  }
   // The address IS the verified subject, and `identities.email` gets it too — `recordEmail`
   // inside `completeSignIn` stores it exactly as a provider-vouched address, which this one is.
   return completeSignIn(
