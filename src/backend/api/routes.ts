@@ -617,7 +617,9 @@ export function createRouter(
           deps, email, body.code, current, toLang(body.locale),
           { terms: true, marketing: body.marketing === true },
         );
-        if ("kind" in result) return refusal(result);
+        if ("kind" in result) {
+          return result.kind === "rate-limited" ? tooManyRequests(result.wait, { error: RATE_LIMITED }) : refusal(result);
+        }
         return json(result satisfies AuthProviderResponse);
       }
 

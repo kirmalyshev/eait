@@ -959,6 +959,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       { terms: true, marketing: cookies[EMAIL_CONSENT_COOKIE] === "m" },
     );
     if ("kind" in result) {
+      if (result.kind === "rate-limited") return seeOther(`${START_PREFIX}/email/code?error=too-many&wait=${result.wait}`);
       return seeOther(`${START_PREFIX}/email/code?error=${result.kind === "code-wrong" ? "wrong" : "dead"}`);
     }
     const landed = await ctx.store.getProfile(result.userId);

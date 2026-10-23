@@ -19,6 +19,8 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import type { AuthProviderResponse, Lang } from "@eait/shared";
+import type { Config } from "../config.ts";
+import { timingSafeEqual } from "../auth/timingsafe.ts";
 import { hashToken } from "../auth/tokens.ts";
 import { AuthError } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -40,6 +42,37 @@ export const EMAIL_ADDRESS = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(\.
 
 /** The address's one stored form: trimmed and lowercased, the subject `identities` keys on. */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+/**
+ * The store-review address (eait#713): on only when BOTH settings are set, and only for that exact
+ * address. Its code is `storeReviewCode`, never mailed, never burnt — a reviewer locked out by five
+ * typos fails the review. What bounds guessing it is `STORE_REVIEW_WRONG_PER_HOUR`, counted across
+ * every peer, because the `auth` limit is per network address and a guesser has many.
+ */
+export const isStoreReviewer = (config: Pick<Config, "storeReviewEmail" | "storeReviewCode">, email: string): boolean =>
+  config.storeReviewEmail !== "" && config.storeReviewCode !== "" && normalizeEmail(email) === config.storeReviewEmail;
+
+/** Wrong store-review codes per hour, from anybody, before that sign-in refuses until the hour rolls. */
+export const STORE_REVIEW_WRONG_PER_HOUR = 10;
+
+// ponytail: in process memory, keyed on the config object (one per process, one per test router):
+// a restart or a second replica forgives, like `api/ratelimit.ts`. Into the store if traffic splits.
+const reviewWrong = new WeakMap<object, { count: number; startedAt: number }>();
+
+/** Seconds until the store-review sign-in takes a code again, or null when it does now. */
+function reviewLockedFor(config: object, at: number): number | null {
+  const w = reviewWrong.get(config);
+  if (!w || at - w.startedAt >= 60 * 60_000 || w.count < STORE_REVIEW_WRONG_PER_HOUR) return null;
+  return Math.ceil((w.startedAt + 60 * 60_000 - at) / 1000);
+}
+
+function recordReviewWrong(config: object, at: number): void {
+  const w = reviewWrong.get(config);
+  if (!w || at - w.startedAt >= 60 * 60_000) reviewWrong.set(config, { count: 1, startedAt: at });
+  else w.count++;
+  // Visible, so a guessing run shows in the log. No code, no address, no peer.
+  console.warn(`[eait] store-review sign-in: wrong code (${reviewWrong.get(config)!.count} of ${STORE_REVIEW_WRONG_PER_HOUR} this hour)`);
+}
 
 /**
  * Six digits from a CSPRNG, without modulo bias.
@@ -81,6 +114,7 @@ export async function sendEmailCode(
   lang: Lang,
 ): Promise<number | null> {
   const email = normalizeEmail(rawEmail);
+  if (isStoreReviewer(deps.config, email)) return null;
   const code = newEmailCode();
   const wait = await deps.store.putEmailCode(
     email,
@@ -112,11 +146,22 @@ export async function verifyEmailCode(
   currentUserId: string | null,
   lang: Lang,
   consent: { terms: boolean; marketing: boolean },
-): Promise<AuthProviderResponse | { kind: "code-wrong" | "code-dead" }> {
+): Promise<AuthProviderResponse | { kind: "code-wrong" | "code-dead" } | { kind: "rate-limited"; wait: number }> {
   if (!consent.terms) throw new AuthError("terms-required");
   const email = normalizeEmail(rawEmail);
-  const spent = await deps.store.spendEmailCode(email, await hashToken(rawCode.trim()), EMAIL_CODE_ATTEMPTS);
-  if (spent !== "ok") return { kind: spent === "wrong" ? "code-wrong" : "code-dead" };
+  if (isStoreReviewer(deps.config, email)) {
+    const at = Date.now();
+    const wait = reviewLockedFor(deps.config, at);
+    if (wait !== null) return { kind: "rate-limited", wait };
+    const ok = timingSafeEqual(await hashToken(rawCode.trim()), await hashToken(deps.config.storeReviewCode));
+    if (!ok) {
+      recordReviewWrong(deps.config, at);
+      return { kind: "code-wrong" };
+    }
+  } else {
+    const spent = await deps.store.spendEmailCode(email, await hashToken(rawCode.trim()), EMAIL_CODE_ATTEMPTS);
+    if (spent !== "ok") return { kind: spent === "wrong" ? "code-wrong" : "code-dead" };
+  }
   // The address IS the verified subject, and `identities.email` gets it too — `recordEmail`
   // inside `completeSignIn` stores it exactly as a provider-vouched address, which this one is.
   return completeSignIn(

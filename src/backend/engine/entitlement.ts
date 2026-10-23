@@ -18,6 +18,7 @@ import {
 import type { Config } from "../config.ts";
 import type { AdminUserRow, EntitlementPatch, StoredEntitlement } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { isStoreReviewer } from "./email.ts";
 import { referralRewardDays } from "./referral.ts";
 
 /**
@@ -166,6 +167,11 @@ export async function readReferralBonus(deps: EngineDeps, userId: string, now = 
   return { stored, ...referralBonusOf(stored, dated, banked, now) };
 }
 
+async function isStoreReviewAccount(deps: EngineDeps, userId: string): Promise<boolean> {
+  if (!isStoreReviewer(deps.config, deps.config.storeReviewEmail)) return false;
+  return (await deps.store.identitySubject(userId, "email")) === deps.config.storeReviewEmail;
+}
+
 /** This account's paid tier, in the shape the profile response carries. */
 export async function entitlementFor(deps: EngineDeps, userId: string): Promise<Entitlement> {
   const now = Date.now();
@@ -175,7 +181,9 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
   // the record — and reporting it raw made the settings screen say "Active until 3 January" beside
   // a "Manage subscription" button opening a Customer Center with no subscription in it. The three
   // states `Entitlement` documents are the three the app is allowed to see.
-  const active = entitlementLive(stored, now, bonusUntil);
+  // The store-review account (eait#713) is comped here, the one place the tier is decided, so the
+  // caps and the profile both see it. Asked only when nothing paid is live, and only when it is on.
+  const active = entitlementLive(stored, now, bonusUntil) || await isStoreReviewAccount(deps, userId);
   const entitlement = {
     active,
     expiresAt: entitlementActive(stored?.expiresAt, now) ? stored?.expiresAt ?? null : null,

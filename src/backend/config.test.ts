@@ -50,6 +50,7 @@ const VARS = [
   "EAIT__BACKEND__DONATE_KOFI_URL", "EAIT__BACKEND__DONATE_BMC_URL", "EAIT__BACKEND__DONATE_GITHUB_URL",
   "EAIT__BACKEND__MAIL_PROVIDER", "EAIT__BACKEND__RESEND_API_KEY", "EAIT__BACKEND__MAIL_FROM",
   "EAIT__BACKEND__EMAIL_CODES_PER_HOUR", "EAIT__BACKEND__EMAIL_CODES_PER_DAY",
+  "EAIT__BACKEND__STORE_REVIEW_EMAIL", "EAIT__BACKEND__STORE_REVIEW_CODE",
 ] as const;
 
 /** A syntactically real PKCS#8 PEM. Nothing here signs with it — `web-oauth.test.ts` does that. */
@@ -283,6 +284,21 @@ describe("redact", () => {
     expect(printed).not.toContain("GOCSPX-not-a-real-secret");
     // The id is not a secret and is worth reading in a boot log — it says which client /start uses.
     expect(printed).toContain("web.apps.googleusercontent.com");
+  });
+
+  it("keeps the store-review code out of it, normalising the address it is for", () => {
+    withRequired({ EAIT__BACKEND__STORE_REVIEW_EMAIL: " Review@EAIT.fit ", EAIT__BACKEND__STORE_REVIEW_CODE: "987654" });
+    const config = loadConfig();
+    expect(config.storeReviewEmail).toBe("review@eait.fit");
+    expect(JSON.stringify(redact(config))).not.toContain("987654");
+  });
+
+  it("switches the store-review sign-in off when the code is not six digits the app can type", () => {
+    for (const code of ["12345", "1234567", "abcdef", "12 456"]) {
+      withRequired({ EAIT__BACKEND__STORE_REVIEW_EMAIL: "review@eait.fit", EAIT__BACKEND__STORE_REVIEW_CODE: code });
+      const config = loadConfig();
+      expect([config.storeReviewEmail, config.storeReviewCode]).toEqual(["", ""]);
+    }
   });
 });
 
