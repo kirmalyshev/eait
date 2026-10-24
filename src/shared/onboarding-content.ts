@@ -59,7 +59,7 @@ const FR: OnboardingContent = {
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Quel âge as-tu ?"], placeholder: "Ton âge" } },
+      asks: { birth_year: { lines: ["Ton âge ?"], placeholder: "Ton âge" } },
     },
     {
       id: "height",
@@ -231,7 +231,7 @@ const DE: OnboardingContent = {
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Wie alt bist du?"], placeholder: "Dein Alter" } },
+      asks: { birth_year: { lines: ["Dein Alter?"], placeholder: "Dein Alter" } },
     },
     {
       id: "height",
@@ -403,7 +403,7 @@ const IT: OnboardingContent = {
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Quanti anni hai?"], placeholder: "La tua età" } },
+      asks: { birth_year: { lines: ["La tua età?"], placeholder: "La tua età" } },
     },
     {
       id: "height",
@@ -575,7 +575,7 @@ const ES: OnboardingContent = {
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["¿Qué edad tienes?"], placeholder: "Tu edad" } },
+      asks: { birth_year: { lines: ["¿Tu edad?"], placeholder: "Tu edad" } },
     },
     {
       id: "height",
@@ -747,7 +747,7 @@ const VI: OnboardingContent = {
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Bạn bao nhiêu tuổi?"], placeholder: "Tuổi của bạn" } },
+      asks: { birth_year: { lines: ["Tuổi của bạn?"], placeholder: "Tuổi của bạn" } },
     },
     {
       id: "height",
@@ -919,7 +919,7 @@ const ID: OnboardingContent = {
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Berapa usiamu?"], placeholder: "Umurmu" } },
+      asks: { birth_year: { lines: ["Umurmu?"], placeholder: "Umurmu" } },
     },
     {
       id: "height",
@@ -1091,7 +1091,7 @@ const RU: OnboardingContent = {
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Сколько тебе лет?"], placeholder: "Твой возраст" } },
+      asks: { birth_year: { lines: ["Твой возраст?"], placeholder: "Твой возраст" } },
     },
     {
       id: "height",
@@ -1288,7 +1288,7 @@ const TE: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["ఫోటోతో కేలరీలు లెక్కించండి"],
     cta: "ప్రారంభించండి",
@@ -1322,7 +1322,7 @@ const TE: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["మీ వయసు ఎంత?"],
+          lines: ["మీ వయసు?"],
           placeholder: "మీ వయసు",
         },
       },
@@ -1570,7 +1570,7 @@ const TA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["புகைப்படத்துடன் கலோரிகளை எண்ணுங்கள்"],
     cta: "தொடங்கு",
@@ -1604,7 +1604,7 @@ const TA: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["உங்கள் வயது என்ன?"],
+          lines: ["உங்கள் வயது?"],
           placeholder: "உங்கள் வயது",
         },
       },
@@ -1852,7 +1852,7 @@ const PA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["ਫੋਟੋ ਨਾਲ ਕੈਲੋਰੀ ਗਿਣੋ"],
     cta: "ਸ਼ੁਰੂ ਕਰੋ",
@@ -1886,7 +1886,7 @@ const PA: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["ਤੁਹਾਡੀ ਉਮਰ ਕੀ ਹੈ?"],
+          lines: ["ਤੁਹਾਡੀ ਉਮਰ?"],
           placeholder: "ਤੁਹਾਡੀ ਉਮਰ",
         },
       },
@@ -2134,7 +2134,7 @@ const OR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["ଫଟୋରେ କ୍ୟାଲୋରୀ ଗଣନ୍ତୁ"],
     cta: "ଆରମ୍ଭ କରନ୍ତୁ",
@@ -2168,7 +2168,7 @@ const OR: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["ଆପଣଙ୍କ ବୟସ କେତେ?"],
+          lines: ["ଆପଣଙ୍କ ବୟସ?"],
           placeholder: "ଆପଣଙ୍କ ବୟସ",
         },
       },
@@ -2416,7 +2416,7 @@ const MR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["फोटोने कॅलरी मोजा"],
     cta: "सुरू करा",
@@ -2450,7 +2450,7 @@ const MR: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["तुमचे वय किती आहे?"],
+          lines: ["तुमचे वय?"],
           placeholder: "तुमचे वय",
         },
       },
@@ -2698,7 +2698,7 @@ const ML: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["ഫോട്ടോയിലൂടെ കലോറി കണക്കാക്കൂ"],
     cta: "തുടങ്ങുക",
@@ -2732,7 +2732,7 @@ const ML: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["നിങ്ങളുടെ പ്രായം എത്ര?"],
+          lines: ["നിങ്ങളുടെ പ്രായം?"],
           placeholder: "നിങ്ങളുടെ പ്രായം",
         },
       },
@@ -2980,7 +2980,7 @@ const KN: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["ಫೋಟೋದಿಂದ ಕ್ಯಾಲೊರಿಗಳನ್ನು ಲೆಕ್ಕ ಹಾಕಿ"],
     cta: "ಪ್ರಾರಂಭಿಸಿ",
@@ -3014,7 +3014,7 @@ const KN: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["ನಿಮ್ಮ ವಯಸ್ಸು ಎಷ್ಟು?"],
+          lines: ["ನಿಮ್ಮ ವಯಸ್ಸು?"],
           placeholder: "ನಿಮ್ಮ ವಯಸ್ಸು",
         },
       },
@@ -3262,7 +3262,7 @@ const GU: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["ફોટોથી કેલરી ગણો"],
     cta: "શરૂ કરો",
@@ -3296,7 +3296,7 @@ const GU: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["તમારી ઉંમર કેટલી છે?"],
+          lines: ["તમારી ઉંમર?"],
           placeholder: "તમારી ઉંમર",
         },
       },
@@ -3544,7 +3544,7 @@ const BN: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["ছবি দিয়ে ক্যালরি গুনুন"],
     cta: "শুরু করুন",
@@ -3578,7 +3578,7 @@ const BN: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["আপনার বয়স কত?"],
+          lines: ["আপনার বয়স?"],
           placeholder: "আপনার বয়স",
         },
       },
@@ -3826,7 +3826,7 @@ const PT_PT: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Conta calorias com uma foto"],
     cta: "Começar",
@@ -3860,7 +3860,7 @@ const PT_PT: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Qual é a tua idade?"],
+          lines: ["A tua idade?"],
           placeholder: "A tua idade",
         },
       },
@@ -4108,7 +4108,7 @@ const MS: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Kira kalori dengan gambar"],
     cta: "Mula",
@@ -4142,7 +4142,7 @@ const MS: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Berapa umur anda?"],
+          lines: ["Umur anda?"],
           placeholder: "Umur anda",
         },
       },
@@ -4390,7 +4390,7 @@ const CA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Compta calories amb una foto"],
     cta: "Comença",
@@ -4424,7 +4424,7 @@ const CA: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Quina edat tens?"],
+          lines: ["La teva edat?"],
           placeholder: "La teva edat",
         },
       },
@@ -4672,7 +4672,7 @@ const SL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Štej kalorije s fotografijo"],
     cta: "Začni",
@@ -4706,7 +4706,7 @@ const SL: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Koliko let imaš?"],
+          lines: ["Tvoja starost?"],
           placeholder: "Tvoja starost",
         },
       },
@@ -4954,7 +4954,7 @@ const HR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Broji kalorije s fotografije"],
     cta: "Kreni",
@@ -4988,7 +4988,7 @@ const HR: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Koliko imaš godina?"],
+          lines: ["Tvoja dob?"],
           placeholder: "Tvoja dob",
         },
       },
@@ -5236,7 +5236,7 @@ const SK: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Počítaj kalórie z fotky"],
     cta: "Začať",
@@ -5270,7 +5270,7 @@ const SK: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Koľko máš rokov?"],
+          lines: ["Tvoj vek?"],
           placeholder: "Tvoj vek",
         },
       },
@@ -5518,7 +5518,7 @@ const NO: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Tell kalorier med et bilde"],
     cta: "Start",
@@ -5552,7 +5552,7 @@ const NO: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Hvor gammel er du?"],
+          lines: ["Alderen din?"],
           placeholder: "Alderen din",
         },
       },
@@ -5800,7 +5800,7 @@ const FI: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Laske kalorit kuvalla"],
     cta: "Aloita",
@@ -5834,7 +5834,7 @@ const FI: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Kuinka vanha olet?"],
+          lines: ["Ikäsi?"],
           placeholder: "Ikäsi",
         },
       },
@@ -6082,7 +6082,7 @@ const DA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Tæl kalorier med et foto"],
     cta: "Start",
@@ -6116,7 +6116,7 @@ const DA: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Hvor gammel er du?"],
+          lines: ["Din alder?"],
           placeholder: "Din alder",
         },
       },
@@ -6364,7 +6364,7 @@ const HU: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Számolj kalóriát egy fotóval"],
     cta: "Kezdés",
@@ -6398,7 +6398,7 @@ const HU: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Hány éves vagy?"],
+          lines: ["Életkorod?"],
           placeholder: "Életkorod",
         },
       },
@@ -6646,7 +6646,7 @@ const EL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Μέτρα θερμίδες με μια φωτογραφία"],
     cta: "Ξεκίνα",
@@ -6680,7 +6680,7 @@ const EL: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Πόσο χρονών είσαι;"],
+          lines: ["Η ηλικία σου;"],
           placeholder: "Η ηλικία σου",
         },
       },
@@ -6928,7 +6928,7 @@ const RO: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Numără caloriile cu o poză"],
     cta: "Începe",
@@ -6962,7 +6962,7 @@ const RO: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Câți ani ai?"],
+          lines: ["Vârsta ta?"],
           placeholder: "Vârsta ta",
         },
       },
@@ -7210,7 +7210,7 @@ const CS: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Počítej kalorie z fotky"],
     cta: "Začít",
@@ -7244,7 +7244,7 @@ const CS: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Kolik ti je let?"],
+          lines: ["Tvůj věk?"],
           placeholder: "Tvůj věk",
         },
       },
@@ -7492,7 +7492,7 @@ const HI: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["फोटो से कैलोरी गिनें"],
     cta: "शुरू करें",
@@ -7526,7 +7526,7 @@ const HI: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["आपकी उम्र क्या है?"],
+          lines: ["आपकी उम्र?"],
           placeholder: "आपकी उम्र",
         },
       },
@@ -7774,7 +7774,7 @@ const TH: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["นับแคลอรี่ด้วยรูปภาพ"],
     cta: "เริ่มเลย",
@@ -7808,7 +7808,7 @@ const TH: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["คุณอายุเท่าไหร่?"],
+          lines: ["อายุของคุณ?"],
           placeholder: "อายุของคุณ",
         },
       },
@@ -8056,7 +8056,7 @@ const SV: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Räkna kalorier med ett foto"],
     cta: "Börja",
@@ -8090,7 +8090,7 @@ const SV: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Hur gammal är du?"],
+          lines: ["Din ålder?"],
           placeholder: "Din ålder",
         },
       },
@@ -8338,7 +8338,7 @@ const UK: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Рахуй калорії за фото"],
     cta: "Почати",
@@ -8372,7 +8372,7 @@ const UK: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Скільки тобі років?"],
+          lines: ["Твій вік?"],
           placeholder: "Твій вік",
         },
       },
@@ -8620,7 +8620,7 @@ const NL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Tel calorieën met een foto"],
     cta: "Start",
@@ -8654,7 +8654,7 @@ const NL: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Hoe oud ben je?"],
+          lines: ["Je leeftijd?"],
           placeholder: "Je leeftijd",
         },
       },
@@ -8902,7 +8902,7 @@ const PL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Policz kalorie ze zdjęcia"],
     cta: "Zacznij",
@@ -8936,7 +8936,7 @@ const PL: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Ile masz lat?"],
+          lines: ["Twój wiek?"],
           placeholder: "Twój wiek",
         },
       },
@@ -9184,7 +9184,7 @@ const TR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Fotoğrafla kalori say"],
     cta: "Başla",
@@ -9218,7 +9218,7 @@ const TR: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Kaç yaşındasın?"],
+          lines: ["Yaşın?"],
           placeholder: "Yaşın",
         },
       },
@@ -9466,7 +9466,7 @@ const ZH_HANT: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["拍照算卡路里"],
     cta: "開始",
@@ -9500,7 +9500,7 @@ const ZH_HANT: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["你幾歲？"],
+          lines: ["你的年齡？"],
           placeholder: "你的年齡",
         },
       },
@@ -9748,7 +9748,7 @@ const ZH_HANS: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["拍照算卡路里"],
     cta: "开始",
@@ -9782,7 +9782,7 @@ const ZH_HANS: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["你多大了？"],
+          lines: ["你的年龄？"],
           placeholder: "你的年龄",
         },
       },
@@ -10030,7 +10030,7 @@ const KO: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["사진으로 칼로리 계산"],
     cta: "시작하기",
@@ -10064,7 +10064,7 @@ const KO: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["나이가 어떻게 되세요?"],
+          lines: ["나이?"],
           placeholder: "나이",
         },
       },
@@ -10312,7 +10312,7 @@ const JA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["写真でカロリー計算"],
     cta: "はじめる",
@@ -10346,7 +10346,7 @@ const JA: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["年齢を教えてください"],
+          lines: ["年齢？"],
           placeholder: "年齢",
         },
       },
@@ -10594,7 +10594,7 @@ const PT_BR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 18,
+  version: 19,
   welcome: {
     lines: ["Conte calorias com uma foto"],
     cta: "Começar",
@@ -10628,7 +10628,7 @@ const PT_BR: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["Qual é a sua idade?"],
+          lines: ["Sua idade?"],
           placeholder: "Sua idade",
         },
       },
