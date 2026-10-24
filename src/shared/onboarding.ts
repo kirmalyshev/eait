@@ -335,7 +335,7 @@ export interface OnboardingScreenContent {
 export interface OnboardingWelcomeContent {
   /** The headline, then its subtitle (ieat-app#2050): "A plan built around you" / "Your goal, your day, your meals". */
   lines: string[];
-  /** The primary button — "Build my plan". */
+  /** The primary button — "Start". */
   cta: string;
   /** The second door — "I already have an account". */
   signin: string;

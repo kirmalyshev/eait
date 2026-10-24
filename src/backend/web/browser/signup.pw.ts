@@ -14,11 +14,11 @@ test("answers before an account, the plan before the sign-up, and the first meal
   await page.goto("/start");
   // The welcome offers the questions and the sign-in — the providers are NOT here (S8): the
   // sign-up screen is where consent and the buttons live.
-  await expect(page.getByRole("link", { name: "Build my plan" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "I already have an account" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Continue with/i })).toHaveCount(0);
 
-  await page.getByRole("link", { name: "Build my plan" }).click();
+  await page.getByRole("link", { name: "Start", exact: true }).click();
   await expect(page).toHaveURL(/\/start\/q/);
 
   // The whole walk with NO sign-in — the account exists because the first answer made it.

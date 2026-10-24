@@ -18,7 +18,7 @@ test("a friend's link: invite page, the walk, the step prefilled, applied", asyn
   await page.goto(`/r/${code}`);
   await expect(page.getByText("A friend sent you a week of eait")).toBeVisible();
   await page.getByRole("link", { name: "Start on the web" }).click();
-  await page.getByRole("link", { name: "Build my plan" }).click();
+  await page.getByRole("link", { name: "Start", exact: true }).click();
   await onboard(page);
   await page.getByRole("link", { name: "Continue", exact: true }).click();
   await page.locator('input[name="terms"]').check();
