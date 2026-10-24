@@ -31,6 +31,15 @@ export interface PayCopy {
   planYearly: string;
   /** pay-plans and the pay-welcome chip: the other plan's name. */
   planMonthly: string;
+  /**
+   * pay-intro (phone, #2444): the offer step's headline — "Try eait free for {days} days".
+   * `{days}` is the store's trial length, drawn only while this account still gets one; a spent
+   * trial skips the step rather than drawing the words, which is the one promise a paywall may
+   * not make.
+   */
+  introTitle: string;
+  /** pay-intro: the demo plate's three callout names — the grams and kcal are `HOW_DEMO`'s, fixed. */
+  introItems: { salmon: string; rice: string; broccoli: string };
   /** pay-plans: the badge on the yearly card. `{days}` is the configured trial length. */
   trialBadge: string;
   /** pay-plans: the yearly card's headline price. `{price}` is `PaywallPlan.price`. */
@@ -163,6 +172,8 @@ export const PAY_COPY: Localized<PayCopy> = {
     plansHeroAlt: "Salmon, rice and greens on a plate",
     planYearly: "Yearly",
     planMonthly: "Monthly",
+    introTitle: "Try eait free for {days} days",
+    introItems: { salmon: "Salmon", rice: "Rice", broccoli: "Broccoli" },
     trialBadge: "{days} days free",
     pricePerYear: "{price} a year",
     pricePerMonth: "{price} a month",
@@ -211,12 +222,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Restore",
     termsLink: "Terms",
     privacyLink: "Privacy",
-  },
+
   fr: {
     plansTitle: "Vois si chaque repas rentre dans ta journée",
     plansHeroAlt: "Saumon, riz et légumes verts dans une assiette",
     planYearly: "Annuel",
     planMonthly: "Mensuel",
+    introTitle: "Essaie eait gratuitement pendant {days} jours",
+    introItems: { salmon: "Saumon", rice: "Riz", broccoli: "Brocoli" },
     trialBadge: "{days} jours offerts",
     pricePerYear: "{price} par an",
     pricePerMonth: "{price} par mois",
@@ -265,12 +278,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Restaurer",
     termsLink: "Conditions",
     privacyLink: "Confidentialité",
-  },
+
   de: {
     plansTitle: "Sieh bei jeder Mahlzeit, ob sie passt",
     plansHeroAlt: "Lachs mit Reis und grünem Gemüse auf einem Teller",
     planYearly: "Jährlich",
     planMonthly: "Monatlich",
+    introTitle: "Teste eait {days} Tage kostenlos",
+    introItems: { salmon: "Lachs", rice: "Reis", broccoli: "Brokkoli" },
     trialBadge: "{days} Tage kostenlos",
     pricePerYear: "{price} im Jahr",
     pricePerMonth: "{price} im Monat",
@@ -319,12 +334,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Wiederherstellen",
     termsLink: "Nutzungsbedingungen",
     privacyLink: "Datenschutz",
-  },
+
   it: {
     plansTitle: "Scopri se ogni pasto ci sta",
     plansHeroAlt: "Salmone, riso e verdure in un piatto",
     planYearly: "Annuale",
     planMonthly: "Mensile",
+    introTitle: "Prova eait gratis per {days} giorni",
+    introItems: { salmon: "Salmone", rice: "Riso", broccoli: "Broccoli" },
     trialBadge: "{days} giorni gratis",
     pricePerYear: "{price} all'anno",
     pricePerMonth: "{price} al mese",
@@ -373,12 +390,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Ripristina",
     termsLink: "Termini",
     privacyLink: "Privacy",
-  },
+
   es: {
     plansTitle: "Descubre si cada comida encaja",
     plansHeroAlt: "Salmón con arroz y verduras en un plato",
     planYearly: "Anual",
     planMonthly: "Mensual",
+    introTitle: "Prueba eait gratis durante {days} días",
+    introItems: { salmon: "Salmón", rice: "Arroz", broccoli: "Brócoli" },
     trialBadge: "{days} días gratis",
     pricePerYear: "{price} al año",
     pricePerMonth: "{price} al mes",
@@ -427,12 +446,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Restaurar",
     termsLink: "Términos",
     privacyLink: "Privacidad",
-  },
+
   vi: {
     plansTitle: "Biết mỗi bữa ăn có phù hợp không",
     plansHeroAlt: "Cá hồi, cơm và rau xanh trên đĩa",
     planYearly: "Hàng năm",
     planMonthly: "Hàng tháng",
+    introTitle: "Dùng thử eait miễn phí {days} ngày",
+    introItems: { salmon: "Cá hồi", rice: "Cơm", broccoli: "Bông cải xanh" },
     trialBadge: "Miễn phí {days} ngày",
     pricePerYear: "{price} một năm",
     pricePerMonth: "{price} một tháng",
@@ -481,12 +502,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Khôi phục",
     termsLink: "Điều khoản",
     privacyLink: "Quyền riêng tư",
-  },
+
   id: {
     plansTitle: "Tahu setiap makanan cocok atau tidak",
     plansHeroAlt: "Salmon, nasi, dan sayuran hijau di piring",
     planYearly: "Tahunan",
     planMonthly: "Bulanan",
+    introTitle: "Coba eait gratis selama {days} hari",
+    introItems: { salmon: "Salmon", rice: "Nasi", broccoli: "Brokoli" },
     trialBadge: "Gratis {days} hari",
     pricePerYear: "{price} setahun",
     pricePerMonth: "{price} sebulan",
@@ -535,12 +558,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Pulihkan",
     termsLink: "Ketentuan",
     privacyLink: "Privasi",
-  },
+
   ru: {
     plansTitle: "Знай, подходит ли каждый приём пищи",
     plansHeroAlt: "Лосось с рисом и зеленью на тарелке",
     planYearly: "Годовой",
     planMonthly: "Месячный",
+    introTitle: "Попробуй eait бесплатно {days} дн.",
+    introItems: { salmon: "Лосось", rice: "Рис", broccoli: "Брокколи" },
     trialBadge: "Бесплатно: {days} дн.",
     pricePerYear: "{price} в год",
     pricePerMonth: "{price} в месяц",
@@ -589,12 +614,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Восстановить",
     termsLink: "Условия",
     privacyLink: "Конфиденциальность",
-  },
+
   te: {
     plansTitle: "ప్రతి భోజనం సరిపోతుందో లేదో తెలుసుకోండి",
     plansHeroAlt: "ప్లేట్‌లో సాల్మన్, అన్నం, ఆకుకూరలు",
     planYearly: "వార్షికం",
     planMonthly: "నెలవారీ",
+    introTitle: "eait ను {days} రోజులు ఉచితంగా ప్రయత్నించండి",
+    introItems: { salmon: "సాల్మన్", rice: "అన్నం", broccoli: "బ్రోక్కోలీ" },
     trialBadge: "{days} రోజులు ఉచితం",
     pricePerYear: "సంవత్సరానికి {price}",
     pricePerMonth: "నెలకు {price}",
@@ -643,12 +670,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "పునరుద్ధరించండి",
     termsLink: "నిబంధనలు",
     privacyLink: "గోప్యత",
-  },
+
   ta: {
     plansTitle: "ஒவ்வொரு உணவும் பொருந்துகிறதா என்று அறியுங்கள்",
     plansHeroAlt: "ஒரு தட்டில் சால்மன், சாதம், கீரைகள்",
     planYearly: "ஆண்டுதோறும்",
     planMonthly: "மாதந்தோறும்",
+    introTitle: "eait ஐ {days} நாட்கள் இலவசமாக முயலுங்கள்",
+    introItems: { salmon: "சால்மன்", rice: "சாதம்", broccoli: "ப்ரோக்கோலி" },
     trialBadge: "{days} நாட்கள் இலவசம்",
     pricePerYear: "ஆண்டுக்கு {price}",
     pricePerMonth: "மாதத்துக்கு {price}",
@@ -697,12 +726,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "மீட்டெடு",
     termsLink: "விதிமுறைகள்",
     privacyLink: "தனியுரிமை",
-  },
+
   pa: {
     plansTitle: "ਜਾਣੋ ਕਿ ਹਰ ਖਾਣਾ ਫ਼ਿੱਟ ਬੈਠਦਾ ਹੈ ਜਾਂ ਨਹੀਂ",
     plansHeroAlt: "ਪਲੇਟ 'ਤੇ ਸੈਮਨ, ਚੌਲ ਅਤੇ ਹਰੀਆਂ ਸਬਜ਼ੀਆਂ",
     planYearly: "ਸਾਲਾਨਾ",
     planMonthly: "ਮਹੀਨਾਵਾਰ",
+    introTitle: "eait ਨੂੰ {days} ਦਿਨ ਮੁਫ਼ਤ ਅਜ਼ਮਾਓ",
+    introItems: { salmon: "ਸੈਲਮਨ", rice: "ਚਾਵਲ", broccoli: "ਬਰੋਕਲੀ" },
     trialBadge: "{days} ਦਿਨ ਮੁਫ਼ਤ",
     pricePerYear: "{price} ਪ੍ਰਤੀ ਸਾਲ",
     pricePerMonth: "{price} ਪ੍ਰਤੀ ਮਹੀਨਾ",
@@ -751,12 +782,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "ਰੀਸਟੋਰ ਕਰੋ",
     termsLink: "ਸ਼ਰਤਾਂ",
     privacyLink: "ਪਰਦੇਦਾਰੀ",
-  },
+
   or: {
     plansTitle: "ପ୍ରତ୍ୟେକ ଭୋଜନ ଫିଟ୍ ହେଉଛି କି ନାହିଁ ଜାଣନ୍ତୁ",
     plansHeroAlt: "ପ୍ଲେଟ୍‌ରେ ସାଲମନ୍, ଭାତ ଓ ଶାଗ",
     planYearly: "ବାର୍ଷିକ",
     planMonthly: "ମାସିକ",
+    introTitle: "eait କୁ {days} ଦିନ ମାଗଣା ଚେଷ୍ଟା କରନ୍ତୁ",
+    introItems: { salmon: "ସାଲମନ", rice: "ଭାତ", broccoli: "ବ୍ରୋକୋଲି" },
     trialBadge: "{days} ଦିନ ମାଗଣା",
     pricePerYear: "ବର୍ଷକୁ {price}",
     pricePerMonth: "ମାସକୁ {price}",
@@ -805,12 +838,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "ରିଷ୍ଟୋର୍",
     termsLink: "ସର୍ତ୍ତାବଳୀ",
     privacyLink: "ଗୋପନୀୟତା",
-  },
+
   mr: {
     plansTitle: "प्रत्येक जेवण बसते का ते जाणून घ्या",
     plansHeroAlt: "ताटात सॅल्मन, भात आणि हिरव्या भाज्या",
     planYearly: "वार्षिक",
     planMonthly: "मासिक",
+    introTitle: "eait {days} दिवस मोफत वापरून पहा",
+    introItems: { salmon: "सॅल्मन", rice: "तांदूळ", broccoli: "ब्रोकोली" },
     trialBadge: "{days} दिवस मोफत",
     pricePerYear: "{price} प्रति वर्ष",
     pricePerMonth: "{price} प्रति महिना",
@@ -859,12 +894,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "रिस्टोअर करा",
     termsLink: "अटी",
     privacyLink: "गोपनीयता",
-  },
+
   ml: {
     plansTitle: "ഓരോ ഭക്ഷണവും യോജിക്കുന്നുണ്ടോ എന്ന് അറിയൂ",
     plansHeroAlt: "ഒരു പ്ലേറ്റിൽ സാൽമൺ, ചോറ്, ഇലക്കറികൾ",
     planYearly: "വാർഷികം",
     planMonthly: "പ്രതിമാസം",
+    introTitle: "eait {days} ദിവസം സൗജന്യമായി പരീക്ഷിക്കൂ",
+    introItems: { salmon: "സാൽമൺ", rice: "ചോറ്", broccoli: "ബ്രോക്കോളി" },
     trialBadge: "{days} ദിവസം സൗജന്യം",
     pricePerYear: "പ്രതിവർഷം {price}",
     pricePerMonth: "പ്രതിമാസം {price}",
@@ -913,12 +950,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "പുനഃസ്ഥാപിക്കുക",
     termsLink: "നിബന്ധനകൾ",
     privacyLink: "സ്വകാര്യത",
-  },
+
   kn: {
     plansTitle: "ಪ್ರತಿ ಊಟ ಹೊಂದುತ್ತದೆಯೇ ಎಂದು ತಿಳಿಯಿರಿ",
     plansHeroAlt: "ತಟ್ಟೆಯಲ್ಲಿ ಸಾಲ್ಮನ್, ಅನ್ನ ಮತ್ತು ಸೊಪ್ಪು",
     planYearly: "ವಾರ್ಷಿಕ",
     planMonthly: "ಮಾಸಿಕ",
+    introTitle: "eait ಅನ್ನು {days} ದಿನ ಉಚಿತವಾಗಿ ಪ್ರಯತ್ನಿಸಿ",
+    introItems: { salmon: "ಸಾಲ್ಮನ್", rice: "ಅನ್ನ", broccoli: "ಬ್ರೊಕ್ಕೊಲಿ" },
     trialBadge: "{days} ದಿನ ಉಚಿತ",
     pricePerYear: "ವರ್ಷಕ್ಕೆ {price}",
     pricePerMonth: "ತಿಂಗಳಿಗೆ {price}",
@@ -967,12 +1006,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "ಮರುಸ್ಥಾಪಿಸಿ",
     termsLink: "ನಿಯಮಗಳು",
     privacyLink: "ಗೌಪ್ಯತೆ",
-  },
+
   gu: {
     plansTitle: "જાણો કે દરેક ભોજન બંધબેસે છે કે નહીં",
     plansHeroAlt: "પ્લેટમાં સૅલ્મન, ભાત અને લીલાં શાકભાજી",
     planYearly: "વાર્ષિક",
     planMonthly: "માસિક",
+    introTitle: "eait ને {days} દિવસ મફત અજમાવો",
+    introItems: { salmon: "સેલમોન", rice: "ભાત", broccoli: "બ્રોકોલી" },
     trialBadge: "{days} દિવસ મફત",
     pricePerYear: "{price} પ્રતિ વર્ષ",
     pricePerMonth: "{price} પ્રતિ મહિનો",
@@ -1021,12 +1062,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "રીસ્ટોર કરો",
     termsLink: "શરતો",
     privacyLink: "ગોપનીયતા",
-  },
+
   bn: {
     plansTitle: "জানুন প্রতিটি খাবার মানানসই কিনা",
     plansHeroAlt: "প্লেটে স্যামন, ভাত ও সবুজ শাকসবজি",
     planYearly: "বার্ষিক",
     planMonthly: "মাসিক",
+    introTitle: "{days} দিন বিনামূল্যে eait ব্যবহার করুন",
+    introItems: { salmon: "স্যামন", rice: "ভাত", broccoli: "ব্রকলি" },
     trialBadge: "{days} দিন ফ্রি",
     pricePerYear: "বছরে {price}",
     pricePerMonth: "মাসে {price}",
@@ -1075,7 +1118,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "রিস্টোর করুন",
     termsLink: "শর্তাবলি",
     privacyLink: "গোপনীয়তা",
-  },
+
   "pt-PT": {
     plansTitle: "Vê se cada refeição cabe no teu dia",
     plansHeroAlt: "Salmão, arroz e legumes verdes num prato",
@@ -1135,6 +1178,8 @@ export const PAY_COPY: Localized<PayCopy> = {
     plansHeroAlt: "Salmon, nasi dan sayur hijau di atas pinggan",
     planYearly: "Tahunan",
     planMonthly: "Bulanan",
+    introTitle: "Cuba eait percuma selama {days} hari",
+    introItems: { salmon: "Salmon", rice: "Nasi", broccoli: "Brokoli" },
     trialBadge: "{days} hari percuma",
     pricePerYear: "{price} setahun",
     pricePerMonth: "{price} sebulan",
@@ -1183,12 +1228,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Pulihkan",
     termsLink: "Terma",
     privacyLink: "Privasi",
-  },
+
   ca: {
     plansTitle: "Sàpigues si cada àpat hi encaixa",
     plansHeroAlt: "Salmó, arròs i verdura en un plat",
     planYearly: "Anual",
     planMonthly: "Mensual",
+    introTitle: "Prova eait gratis durant {days} dies",
+    introItems: { salmon: "Salmó", rice: "Arròs", broccoli: "Bròquil" },
     trialBadge: "{days} dies gratis",
     pricePerYear: "{price} l'any",
     pricePerMonth: "{price} al mes",
@@ -1237,12 +1284,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Restaura",
     termsLink: "Condicions",
     privacyLink: "Privadesa",
-  },
+
   sl: {
     plansTitle: "Vedi, ali vsak obrok ustreza načrtu",
     plansHeroAlt: "Losos, riž in zelenjava na krožniku",
     planYearly: "Letni",
     planMonthly: "Mesečni",
+    introTitle: "Preizkusi eait brezplačno {days} dni",
+    introItems: { salmon: "Losos", rice: "Riž", broccoli: "Brokoli" },
     trialBadge: "{days} dni brezplačno",
     pricePerYear: "{price} na leto",
     pricePerMonth: "{price} na mesec",
@@ -1291,12 +1340,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Obnovi",
     termsLink: "Pogoji",
     privacyLink: "Zasebnost",
-  },
+
   hr: {
     plansTitle: "Znaj uklapa li se svaki obrok",
     plansHeroAlt: "Losos, riža i zelje na tanjuru",
     planYearly: "Godišnje",
     planMonthly: "Mjesečno",
+    introTitle: "Isprobaj eait besplatno {days} dana",
+    introItems: { salmon: "Losos", rice: "Riža", broccoli: "Brokula" },
     trialBadge: "{days} dana besplatno",
     pricePerYear: "{price} godišnje",
     pricePerMonth: "{price} mjesečno",
@@ -1345,12 +1396,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Obnovi",
     termsLink: "Uvjeti",
     privacyLink: "Privatnost",
-  },
+
   sk: {
     plansTitle: "Pri každom jedle uvidíš, či sedí",
     plansHeroAlt: "Losos, ryža a zelenina na tanieri",
     planYearly: "Ročne",
     planMonthly: "Mesačne",
+    introTitle: "Vyskúšaj eait zadarmo na {days} dní",
+    introItems: { salmon: "Losos", rice: "Ryža", broccoli: "Brokolica" },
     trialBadge: "{days} d. zadarmo",
     pricePerYear: "{price} ročne",
     pricePerMonth: "{price} mesačne",
@@ -1399,12 +1452,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Obnoviť",
     termsLink: "Podmienky",
     privacyLink: "Súkromie",
-  },
+
   no: {
     plansTitle: "Vit om hvert måltid passer",
     plansHeroAlt: "Laks, ris og grønnsaker på en tallerken",
     planYearly: "Årlig",
     planMonthly: "Månedlig",
+    introTitle: "Prøv eait gratis i {days} dager",
+    introItems: { salmon: "Laks", rice: "Ris", broccoli: "Brokkoli" },
     trialBadge: "{days} dager gratis",
     pricePerYear: "{price} per år",
     pricePerMonth: "{price} per måned",
@@ -1453,12 +1508,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Gjenopprett",
     termsLink: "Vilkår",
     privacyLink: "Personvern",
-  },
+
   fi: {
     plansTitle: "Tiedä, sopiiko jokainen ateria",
     plansHeroAlt: "Lohta, riisiä ja vihreitä vihanneksia lautasella",
     planYearly: "Vuositilaus",
     planMonthly: "Kuukausitilaus",
+    introTitle: "Kokeile eaitia ilmaiseksi {days} päivää",
+    introItems: { salmon: "Lohi", rice: "Riisi", broccoli: "Parsakaali" },
     trialBadge: "{days} päivää ilmaiseksi",
     pricePerYear: "{price} vuodessa",
     pricePerMonth: "{price} kuukaudessa",
@@ -1507,12 +1564,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Palauta",
     termsLink: "Käyttöehdot",
     privacyLink: "Tietosuoja",
-  },
+
   da: {
     plansTitle: "Se, om hvert måltid passer",
     plansHeroAlt: "Laks, ris og grønt på en tallerken",
     planYearly: "Årlig",
     planMonthly: "Månedlig",
+    introTitle: "Prøv eait gratis i {days} dage",
+    introItems: { salmon: "Laks", rice: "Ris", broccoli: "Broccoli" },
     trialBadge: "{days} dage gratis",
     pricePerYear: "{price} om året",
     pricePerMonth: "{price} om måneden",
@@ -1561,12 +1620,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Gendan",
     termsLink: "Vilkår",
     privacyLink: "Privatliv",
-  },
+
   hu: {
     plansTitle: "Tudd, belefér-e minden étkezés",
     plansHeroAlt: "Lazac, rizs és zöldség egy tányéron",
     planYearly: "Éves",
     planMonthly: "Havi",
+    introTitle: "Próbáld ki az eait-et ingyen {days} napig",
+    introItems: { salmon: "Lazac", rice: "Rizs", broccoli: "Brokkoli" },
     trialBadge: "{days} nap ingyen",
     pricePerYear: "{price} évente",
     pricePerMonth: "{price} havonta",
@@ -1615,12 +1676,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Visszaállítás",
     termsLink: "Feltételek",
     privacyLink: "Adatvédelem",
-  },
+
   el: {
     plansTitle: "Μάθε αν κάθε γεύμα ταιριάζει",
     plansHeroAlt: "Σολομός, ρύζι και πράσινα λαχανικά σε πιάτο",
     planYearly: "Ετήσια",
     planMonthly: "Μηνιαία",
+    introTitle: "Δοκίμασε το eait δωρεάν για {days} ημέρες",
+    introItems: { salmon: "Σολομός", rice: "Ρύζι", broccoli: "Μπρόκολο" },
     trialBadge: "{days} ημέρες δωρεάν",
     pricePerYear: "{price} τον χρόνο",
     pricePerMonth: "{price} τον μήνα",
@@ -1669,12 +1732,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Επαναφορά",
     termsLink: "Όροι",
     privacyLink: "Απόρρητο",
-  },
+
   ro: {
     plansTitle: "Află dacă fiecare masă se potrivește",
     plansHeroAlt: "Somon, orez și verdețuri pe o farfurie",
     planYearly: "Anual",
     planMonthly: "Lunar",
+    introTitle: "Încearcă eait gratuit timp de {days} zile",
+    introItems: { salmon: "Somon", rice: "Orez", broccoli: "Broccoli" },
     trialBadge: "{days} zile gratuit",
     pricePerYear: "{price} pe an",
     pricePerMonth: "{price} pe lună",
@@ -1723,12 +1788,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Restaurează",
     termsLink: "Termeni",
     privacyLink: "Confidențialitate",
-  },
+
   cs: {
     plansTitle: "Věz, jestli každé jídlo sedí",
     plansHeroAlt: "Losos, rýže a zelenina na talíři",
     planYearly: "Roční",
     planMonthly: "Měsíční",
+    introTitle: "Vyzkoušej eait zdarma po dobu {days} dnů",
+    introItems: { salmon: "Losos", rice: "Rýže", broccoli: "Brokolice" },
     trialBadge: "{days} d zdarma",
     pricePerYear: "{price} ročně",
     pricePerMonth: "{price} měsíčně",
@@ -1777,12 +1844,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Obnovit",
     termsLink: "Podmínky",
     privacyLink: "Soukromí",
-  },
+
   hi: {
     plansTitle: "जानें कि हर भोजन फ़िट बैठता है या नहीं",
     plansHeroAlt: "प्लेट पर सैल्मन, चावल और हरी सब्ज़ियाँ",
     planYearly: "सालाना",
     planMonthly: "मासिक",
+    introTitle: "eait को {days} दिन मुफ़्त आज़माएं",
+    introItems: { salmon: "सैलमन", rice: "चावल", broccoli: "ब्रोकली" },
     trialBadge: "{days} दिन मुफ़्त",
     pricePerYear: "{price} प्रति वर्ष",
     pricePerMonth: "{price} प्रति माह",
@@ -1831,12 +1900,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "रीस्टोर करें",
     termsLink: "शर्तें",
     privacyLink: "गोपनीयता",
-  },
+
   th: {
     plansTitle: "รู้ว่าทุกมื้อเข้ากับแผนไหม",
     plansHeroAlt: "แซลมอน ข้าว และผักใบเขียวบนจาน",
     planYearly: "รายปี",
     planMonthly: "รายเดือน",
+    introTitle: "ลองใช้ eait ฟรี {days} วัน",
+    introItems: { salmon: "แซลมอน", rice: "ข้าว", broccoli: "บร็อกโกลี" },
     trialBadge: "ฟรี {days} วัน",
     pricePerYear: "{price} ต่อปี",
     pricePerMonth: "{price} ต่อเดือน",
@@ -1885,12 +1956,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "กู้คืน",
     termsLink: "ข้อกำหนด",
     privacyLink: "ความเป็นส่วนตัว",
-  },
+
   sv: {
     plansTitle: "Se om varje måltid passar",
     plansHeroAlt: "Lax, ris och grönt på en tallrik",
     planYearly: "Årsvis",
     planMonthly: "Månadsvis",
+    introTitle: "Prova eait gratis i {days} dagar",
+    introItems: { salmon: "Lax", rice: "Ris", broccoli: "Broccoli" },
     trialBadge: "{days} dagar gratis",
     pricePerYear: "{price} per år",
     pricePerMonth: "{price} per månad",
@@ -1939,12 +2012,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Återställ",
     termsLink: "Villkor",
     privacyLink: "Integritet",
-  },
+
   uk: {
     plansTitle: "Знай, чи вписується кожен прийом їжі",
     plansHeroAlt: "Лосось, рис і зелень на тарілці",
     planYearly: "Річна",
     planMonthly: "Місячна",
+    introTitle: "Спробуй eait безплатно {days} дн.",
+    introItems: { salmon: "Лосось", rice: "Рис", broccoli: "Броколі" },
     trialBadge: "{days} дн. безкоштовно",
     pricePerYear: "{price} на рік",
     pricePerMonth: "{price} на місяць",
@@ -1993,12 +2068,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Відновити",
     termsLink: "Умови",
     privacyLink: "Конфіденційність",
-  },
+
   nl: {
     plansTitle: "Weet of elke maaltijd past",
     plansHeroAlt: "Zalm, rijst en groenten op een bord",
     planYearly: "Jaarlijks",
     planMonthly: "Maandelijks",
+    introTitle: "Probeer eait {days} dagen gratis",
+    introItems: { salmon: "Zalm", rice: "Rijst", broccoli: "Broccoli" },
     trialBadge: "{days} dagen gratis",
     pricePerYear: "{price} per jaar",
     pricePerMonth: "{price} per maand",
@@ -2047,12 +2124,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Herstel",
     termsLink: "Voorwaarden",
     privacyLink: "Privacy",
-  },
+
   pl: {
     plansTitle: "Wiedz, czy każdy posiłek pasuje",
     plansHeroAlt: "Łosoś, ryż i zielenina na talerzu",
     planYearly: "Roczny",
     planMonthly: "Miesięczny",
+    introTitle: "Wypróbuj eait za darmo przez {days} dni",
+    introItems: { salmon: "Łosoś", rice: "Ryż", broccoli: "Brokuły" },
     trialBadge: "{days} dni za darmo",
     pricePerYear: "{price} rocznie",
     pricePerMonth: "{price} miesięcznie",
@@ -2101,12 +2180,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Przywróć",
     termsLink: "Regulamin",
     privacyLink: "Prywatność",
-  },
+
   tr: {
     plansTitle: "Her öğünün planına uyup uymadığını bil",
     plansHeroAlt: "Tabakta somon, pilav ve yeşillik",
     planYearly: "Yıllık",
     planMonthly: "Aylık",
+    introTitle: "eait'i {days} gün ücretsiz dene",
+    introItems: { salmon: "Somon", rice: "Pirinç", broccoli: "Brokoli" },
     trialBadge: "{days} gün ücretsiz",
     pricePerYear: "yıllık {price}",
     pricePerMonth: "aylık {price}",
@@ -2155,7 +2236,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "Geri Yükle",
     termsLink: "Koşullar",
     privacyLink: "Gizlilik",
-  },
+
   "zh-Hant": {
     plansTitle: "知道每一餐是否符合計畫",
     plansHeroAlt: "盤子上的鮭魚、米飯和綠色蔬菜",
@@ -2269,6 +2350,8 @@ export const PAY_COPY: Localized<PayCopy> = {
     plansHeroAlt: "접시에 담긴 연어, 밥, 채소",
     planYearly: "연간",
     planMonthly: "월간",
+    introTitle: "eait를 {days}일 동안 무료로 체험해 보세요",
+    introItems: { salmon: "연어", rice: "밥", broccoli: "브로콜리" },
     trialBadge: "{days}일 무료",
     pricePerYear: "연 {price}",
     pricePerMonth: "월 {price}",
@@ -2317,12 +2400,14 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "복원",
     termsLink: "이용약관",
     privacyLink: "개인정보 처리방침",
-  },
+
   ja: {
     plansTitle: "どの食事もプランに合っているかわかる",
     plansHeroAlt: "お皿に盛られたサーモン、ごはん、葉物野菜",
     planYearly: "年額",
     planMonthly: "月額",
+    introTitle: "eaitを{days}日間無料で試す",
+    introItems: { salmon: "サーモン", rice: "ご飯", broccoli: "ブロッコリー" },
     trialBadge: "{days}日間無料",
     pricePerYear: "年額{price}",
     pricePerMonth: "月額{price}",
@@ -2371,7 +2456,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     restoreLink: "復元",
     termsLink: "利用規約",
     privacyLink: "プライバシー",
-  },
+
   "pt-BR": {
     plansTitle: "Saiba se cada refeição cabe no seu dia",
     plansHeroAlt: "Salmão, arroz e verduras em um prato",
