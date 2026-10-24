@@ -64,6 +64,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Send me tips and new features from eait",
     errorTerms: "Agree to the Terms and Privacy Policy to continue.",
 
+  },
   fr: {
     startCta: "Créer mon plan",
     haveAccountCta: "J'ai déjà un compte",
@@ -79,6 +80,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Envoie-moi des conseils et les nouveautés d'eait",
     errorTerms: "Accepte les Conditions et la Politique de confidentialité pour continuer.",
 
+  },
   de: {
     startCta: "Meinen Plan erstellen",
     haveAccountCta: "Ich habe schon ein Konto",
@@ -94,6 +96,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Schick mir Tipps und neue Funktionen von eait",
     errorTerms: "Stimm den Nutzungsbedingungen und der Datenschutzerklärung zu, um weiterzumachen.",
 
+  },
   it: {
     startCta: "Crea il mio piano",
     haveAccountCta: "Ho già un account",
@@ -109,6 +112,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Inviami consigli e novità da eait",
     errorTerms: "Accetta i Termini e l'Informativa sulla privacy per continuare.",
 
+  },
   es: {
     startCta: "Crear mi plan",
     haveAccountCta: "Ya tengo una cuenta",
@@ -124,6 +128,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Envíame consejos y novedades de eait",
     errorTerms: "Acepta los Términos y la Política de privacidad para continuar.",
 
+  },
   vi: {
     startCta: "Lập kế hoạch cho mình",
     haveAccountCta: "Mình đã có tài khoản",
@@ -139,6 +144,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Gửi cho mình mẹo và tính năng mới từ eait",
     errorTerms: "Đồng ý với Điều khoản và Chính sách quyền riêng tư để tiếp tục.",
 
+  },
   id: {
     startCta: "Buat rencanaku",
     haveAccountCta: "Aku sudah punya akun",
@@ -154,6 +160,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Kirimi aku tips dan fitur baru dari eait",
     errorTerms: "Setujui Ketentuan dan Kebijakan Privasi untuk melanjutkan.",
 
+  },
   ru: {
     startCta: "Составить мой план",
     haveAccountCta: "У меня уже есть аккаунт",
@@ -169,6 +176,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Присылать мне советы и новинки eait",
     errorTerms: "Чтобы продолжить, прими Условия и Политику конфиденциальности.",
 
+  },
   te: {
     startCta: "నా ప్లాన్ రూపొందించండి",
     haveAccountCta: "నాకు ఇప్పటికే ఖాతా ఉంది",
@@ -184,6 +192,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait నుండి చిట్కాలు, కొత్త ఫీచర్‌లు నాకు పంపండి",
     errorTerms: "కొనసాగడానికి నిబంధనలు, గోప్యతా విధానానికి అంగీకరించండి.",
 
+  },
   ta: {
     startCta: "என் திட்டத்தை உருவாக்கு",
     haveAccountCta: "எனக்கு ஏற்கெனவே கணக்கு உள்ளது",
@@ -199,6 +208,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait-இலிருந்து குறிப்புகளையும் புதிய அம்சங்களையும் எனக்கு அனுப்பவும்",
     errorTerms: "தொடர விதிமுறைகளையும் தனியுரிமைக் கொள்கையையும் ஏற்கவும்.",
 
+  },
   pa: {
     startCta: "ਮੇਰਾ ਪਲਾਨ ਬਣਾਓ",
     haveAccountCta: "ਮੇਰਾ ਪਹਿਲਾਂ ਤੋਂ ਅਕਾਊਂਟ ਹੈ",
@@ -214,6 +224,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "ਮੈਨੂੰ eait ਤੋਂ ਸੁਝਾਅ ਅਤੇ ਨਵੇਂ ਫ਼ੀਚਰ ਭੇਜੋ",
     errorTerms: "ਜਾਰੀ ਰੱਖਣ ਲਈ ਸ਼ਰਤਾਂ ਅਤੇ ਪਰਦੇਦਾਰੀ ਨੀਤੀ ਨਾਲ ਸਹਿਮਤੀ ਦਿਓ।",
 
+  },
   or: {
     startCta: "ମୋ ପ୍ଲାନ୍ ତିଆରି କରନ୍ତୁ",
     haveAccountCta: "ମୋର ପୂର୍ବରୁ ଆକାଉଣ୍ଟ ଅଛି",
@@ -229,6 +240,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait ରୁ ମୋତେ ଟିପ୍ସ ଓ ନୂଆ ଫିଚର୍ ପଠାନ୍ତୁ",
     errorTerms: "ଜାରି ରଖିବାକୁ ସର୍ତ୍ତାବଳୀ ଓ ଗୋପନୀୟତା ନୀତିରେ ସହମତି ଦିଅନ୍ତୁ।",
 
+  },
   mr: {
     startCta: "माझा प्लॅन तयार करा",
     haveAccountCta: "माझे आधीच अकाउंट आहे",
@@ -244,6 +256,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait कडून टिप्स आणि नवीन फीचर्स मला पाठवा",
     errorTerms: "पुढे जाण्यासाठी अटी आणि गोपनीयता धोरणाशी सहमत व्हा.",
 
+  },
   ml: {
     startCta: "എന്റെ പ്ലാൻ തയ്യാറാക്കൂ",
     haveAccountCta: "എനിക്ക് ഇതിനകം അക്കൗണ്ടുണ്ട്",
@@ -259,6 +272,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait-ൽ നിന്നുള്ള നുറുങ്ങുകളും പുതിയ ഫീച്ചറുകളും എനിക്ക് അയയ്ക്കൂ",
     errorTerms: "തുടരാൻ നിബന്ധനകളും സ്വകാര്യതാ നയവും അംഗീകരിക്കൂ.",
 
+  },
   kn: {
     startCta: "ನನ್ನ ಪ್ಲಾನ್ ರೂಪಿಸಿ",
     haveAccountCta: "ನನಗೆ ಈಗಾಗಲೇ ಖಾತೆ ಇದೆ",
@@ -274,6 +288,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait ನಿಂದ ಸಲಹೆಗಳು ಮತ್ತು ಹೊಸ ಫೀಚರ್‌ಗಳನ್ನು ನನಗೆ ಕಳುಹಿಸಿ",
     errorTerms: "ಮುಂದುವರಿಯಲು ನಿಯಮಗಳು ಮತ್ತು ಗೌಪ್ಯತಾ ನೀತಿಗೆ ಒಪ್ಪಿಗೆ ನೀಡಿ.",
 
+  },
   gu: {
     startCta: "મારો પ્લાન બનાવો",
     haveAccountCta: "મારું એકાઉન્ટ પહેલેથી છે",
@@ -289,6 +304,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "મને eait તરફથી ટિપ્સ અને નવાં ફીચર મોકલો",
     errorTerms: "ચાલુ રાખવા માટે શરતો અને ગોપનીયતા નીતિ સાથે સંમતિ આપો.",
 
+  },
   bn: {
     startCta: "আমার প্ল্যান তৈরি করুন",
     haveAccountCta: "আমার আগে থেকেই অ্যাকাউন্ট আছে",
@@ -304,6 +320,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait থেকে আমাকে টিপস ও নতুন ফিচারের খবর পাঠান",
     errorTerms: "চালিয়ে যেতে শর্তাবলি ও গোপনীয়তা নীতিতে সম্মতি দিন।",
 
+  },
   "pt-PT": {
     startCta: "Criar o meu plano",
     haveAccountCta: "Já tenho uma conta",
@@ -319,6 +336,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Quero receber dicas e novidades do eait",
     errorTerms: "Aceita os Termos e a Política de Privacidade para continuar.",
 
+  },
   ms: {
     startCta: "Bina pelan saya",
     haveAccountCta: "Saya sudah ada akaun",
@@ -334,6 +352,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Hantarkan saya petua dan ciri baharu daripada eait",
     errorTerms: "Setuju dengan Terma dan Dasar Privasi untuk teruskan.",
 
+  },
   ca: {
     startCta: "Crea el meu pla",
     haveAccountCta: "Ja tinc un compte",
@@ -349,6 +368,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Envia'm consells i novetats d'eait",
     errorTerms: "Accepta les Condicions i la Política de privadesa per continuar.",
 
+  },
   sl: {
     startCta: "Sestavi moj načrt",
     haveAccountCta: "Račun že imam",
@@ -364,6 +384,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Pošiljaj mi nasvete in novosti od eait",
     errorTerms: "Za nadaljevanje sprejmi pogoje uporabe in pravilnik o zasebnosti.",
 
+  },
   hr: {
     startCta: "Izradi moj plan",
     haveAccountCta: "Već imam račun",
@@ -379,6 +400,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Šalji mi savjete i nove značajke od eait",
     errorTerms: "Za nastavak prihvati Uvjete korištenja i Pravila privatnosti.",
 
+  },
   sk: {
     startCta: "Vytvoriť môj plán",
     haveAccountCta: "Už mám účet",
@@ -394,6 +416,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Posielajte mi tipy a novinky od eait",
     errorTerms: "Na pokračovanie prijmi Podmienky a Zásady ochrany súkromia.",
 
+  },
   no: {
     startCta: "Lag planen min",
     haveAccountCta: "Jeg har allerede en konto",
@@ -409,6 +432,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Send meg tips og nye funksjoner fra eait",
     errorTerms: "Godta vilkårene og personvernerklæringen for å fortsette.",
 
+  },
   fi: {
     startCta: "Rakenna suunnitelmani",
     haveAccountCta: "Minulla on jo tili",
@@ -424,6 +448,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Lähetä minulle vinkkejä ja uutuuksia eait-sovelluksesta",
     errorTerms: "Hyväksy käyttöehdot ja tietosuojakäytäntö jatkaaksesi.",
 
+  },
   da: {
     startCta: "Lav min plan",
     haveAccountCta: "Jeg har allerede en konto",
@@ -439,6 +464,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Send mig tips og nye funktioner fra eait",
     errorTerms: "Accepter Vilkår og Privatlivspolitik for at fortsætte.",
 
+  },
   hu: {
     startCta: "Kérem a tervemet",
     haveAccountCta: "Már van fiókom",
@@ -454,6 +480,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Kérek tippeket és újdonságokat az eait-től",
     errorTerms: "A folytatáshoz fogadd el a Felhasználási feltételeket és az Adatvédelmi irányelveket.",
 
+  },
   el: {
     startCta: "Φτιάξε το πλάνο μου",
     haveAccountCta: "Έχω ήδη λογαριασμό",
@@ -469,6 +496,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Στείλε μου συμβουλές και νέες λειτουργίες από το eait",
     errorTerms: "Αποδέξου τους Όρους χρήσης και την Πολιτική απορρήτου για να συνεχίσεις.",
 
+  },
   ro: {
     startCta: "Construiește-mi planul",
     haveAccountCta: "Am deja un cont",
@@ -484,6 +512,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Trimite-mi sfaturi și noutăți de la eait",
     errorTerms: "Acceptă Termenii și Politica de confidențialitate ca să continui.",
 
+  },
   cs: {
     startCta: "Sestavit můj plán",
     haveAccountCta: "Už mám účet",
@@ -499,6 +528,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Chci dostávat tipy a novinky od eait",
     errorTerms: "Pro pokračování odsouhlas Podmínky a Zásady ochrany osobních údajů.",
 
+  },
   hi: {
     startCta: "मेरा प्लान बनाएँ",
     haveAccountCta: "मेरा पहले से अकाउंट है",
@@ -514,6 +544,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "मुझे eait से सुझाव और नए फ़ीचर भेजें",
     errorTerms: "जारी रखने के लिए शर्तों और गोपनीयता नीति से सहमति दें।",
 
+  },
   th: {
     startCta: "สร้างแผนของฉัน",
     haveAccountCta: "ฉันมีบัญชีอยู่แล้ว",
@@ -529,6 +560,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "ส่งเคล็ดลับและฟีเจอร์ใหม่จาก eait ให้ฉัน",
     errorTerms: "ยอมรับข้อกำหนดและนโยบายความเป็นส่วนตัวเพื่อดำเนินการต่อ",
 
+  },
   sv: {
     startCta: "Bygg min plan",
     haveAccountCta: "Jag har redan ett konto",
@@ -544,6 +576,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Skicka mig tips och nya funktioner från eait",
     errorTerms: "Godkänn villkoren och integritetspolicyn för att fortsätta.",
 
+  },
   uk: {
     startCta: "Скласти мій план",
     haveAccountCta: "У мене вже є акаунт",
@@ -559,6 +592,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Надсилати мені поради та новинки eait",
     errorTerms: "Щоб продовжити, прийми Умови та Політику конфіденційності.",
 
+  },
   nl: {
     startCta: "Maak mijn plan",
     haveAccountCta: "Ik heb al een account",
@@ -574,6 +608,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Stuur me tips en nieuwe functies van eait",
     errorTerms: "Ga akkoord met de Voorwaarden en het Privacybeleid om door te gaan.",
 
+  },
   pl: {
     startCta: "Stwórz mój plan",
     haveAccountCta: "Mam już konto",
@@ -589,6 +624,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Wysyłaj mi wskazówki i nowości od eait",
     errorTerms: "Zaakceptuj Regulamin i Politykę prywatności, aby kontynuować.",
 
+  },
   tr: {
     startCta: "Planımı oluştur",
     haveAccountCta: "Zaten bir hesabım var",
@@ -604,6 +640,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "Bana eait'ten ipuçları ve yeni özellikler gönder",
     errorTerms: "Devam etmek için Koşullar'ı ve Gizlilik Politikası'nı kabul et.",
 
+  },
   "zh-Hant": {
     startCta: "建立我的計畫",
     haveAccountCta: "我已經有帳號了",
@@ -619,6 +656,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "寄給我 eait 的小技巧和新功能",
     errorTerms: "請同意使用條款和隱私權政策以繼續。",
 
+  },
   "zh-Hans": {
     startCta: "制定我的计划",
     haveAccountCta: "我已有账户",
@@ -634,6 +672,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "向我发送 eait 的小贴士和新功能",
     errorTerms: "同意条款和隐私政策后即可继续。",
 
+  },
   ko: {
     startCta: "내 플랜 만들기",
     haveAccountCta: "이미 계정이 있어요",
@@ -649,6 +688,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eait의 팁과 새 기능 소식을 받을게요",
     errorTerms: "계속하려면 이용약관과 개인정보 처리방침에 동의해 주세요.",
 
+  },
   ja: {
     startCta: "プランを作る",
     haveAccountCta: "アカウントをお持ちの方",
@@ -664,6 +704,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     consentMarketing: "eaitからヒントや新機能のお知らせを受け取る",
     errorTerms: "続けるには利用規約とプライバシーポリシーに同意してください。",
 
+  },
   "pt-BR": {
     startCta: "Montar meu plano",
     haveAccountCta: "Já tenho uma conta",
@@ -678,7 +719,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Política de Privacidade",
     consentMarketing: "Quero receber dicas e novidades do eait",
     errorTerms: "Aceite os Termos e a Política de Privacidade para continuar.",
-
+  },
 };
 
 export const signupCopyFor = (lang: Lang): SignupCopy => t(lang)(SIGNUP_COPY);
