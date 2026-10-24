@@ -79,9 +79,9 @@ describe("PAY_COPY", () => {
     expect(en.benefitPhoto).toBe("One photo logs a meal");
     expect(en.benefitPlan).toBe("Every meal checked against your plan");
     expect(en.benefitChat).toBe("Ask Spud about your day");
-    expect(en.yearlySub).toBe("{trial}, then {price} a year");
+    expect(en.yearlySub).toBe("{trial}, {price} a year");
     expect(en.perMonthCaption).toBe("a month");
-    expect(en.monthlySub).toBe("{trial}, then {price} a month");
+    expect(en.monthlySub).toBe("{trial}, {price} a month");
     expect(en.startTrial).toBe("Try {days} days free");
     expect(en.trialNote).toBe("{days} days free, then {renewal}. Renews automatically until cancelled. Cancel any time in Profile › Subscription.");
     expect(en.trialNotePhone).toBe("{days} days free, then {renewal}. Renews automatically until cancelled. Cancel in Settings › Apple ID › Subscriptions at least 24 hours before the trial ends.");
