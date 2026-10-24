@@ -835,8 +835,9 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // `barrier` and `situation`; a stored v17 revision has no asks for them, so `usableContent`
   // retires it and every language falls back to this. Same bump for the welcome line, "Height",
   // "Your weight" and "Where do you eat?" — different words under the same number is the average
-  // the counter exists to prevent.
-  version: 18,
+  // the counter exists to prevent. v19 (eait#726): the age headline is "Your age?" — same
+  // question, new words, same reason to bump.
+  version: 19,
   welcome: {
     lines: ["Count calories with a photo"],
     cta: "Start",
@@ -870,7 +871,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       asks: {
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["What's your age?"],
+          lines: ["Your age?"],
           placeholder: "Your age",
         },
       },
