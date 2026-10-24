@@ -594,6 +594,11 @@ msgstr "রাতের খাবারে হালকা কী দিয়�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "আজ আরও বেশি খাওয়ার সহজ উপায় কী?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "আপনার প্রথম দিন শুরু হয়েছে। 20:30-এ আপনি একটা বার্তা পাবেন — প্ল্যানের তুলনায় আজকের দিন, আর কালকের জন্য একটা নির্দিষ্ট পরামর্শ। তার আগে কিছু নয়।"
 

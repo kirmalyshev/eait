@@ -31,9 +31,9 @@
 // so it can render the next question without a round trip. One implementation, so they cannot
 // disagree about what "next" means.
 
-import type { Lang, Profile, Struggle } from "./types.ts";
+import type { Barrier, Goal, Lang, Profile } from "./types.ts";
 import { genderedRussian, LANG_TAG } from "./lang.ts";
-import { ACTIVITY_LEVELS, PACES, SEXES, STREAK_GOALS, STRUGGLES } from "./types.ts";
+import { ACTIVITY_LEVELS, BARRIERS, COUNTED_BEFORE, PACES, SEXES, SITUATIONS, STREAK_GOALS } from "./types.ts";
 import { DIETS, MEDICAL_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
 
@@ -53,7 +53,7 @@ import { lintCopy } from "./claims.ts";
  */
 export const ONBOARDING_STEPS = [
   "goal", "sex", "birth_year", "height_cm", "weight_kg", "activity", "target_weight_kg", "pace",
-  "struggles", "streak_goal_days", "diet", "medical", "country",
+  "counted_before", "barriers", "situations", "diet", "medical", "country", "streak_goal_days",
 ] as const;
 /**
  * The answer keys, in flow order. Most name the profile column the answer lands in; `diet` and
@@ -71,6 +71,9 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
  */
 export function stepApplies(step: OnboardingStep, p: Profile): boolean {
   if (p.goal === "maintain" && (step === "target_weight_kg" || step === "pace")) return false;
+  // A first-timer has nothing to have stopped them: "Counted calories before?" → "Never"
+  // skips the barrier question (the situation one stays, reworded — its copy carries the variant).
+  if (step === "barriers" && p.counted_before === "never") return false;
   return true;
 }
 
@@ -90,7 +93,7 @@ export function stepApplies(step: OnboardingStep, p: Profile): boolean {
  */
 export const ONBOARDING_SCREENS = [
   "goal", "sex", "age", "height", "weight", "activity", "target", "pace",
-  "struggles", "streak", "diet", "medical", "country",
+  "counted", "barrier", "situation", "diet", "medical", "country", "streak",
 ] as const;
 export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
 
@@ -106,12 +109,11 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * before they existed. Adding a place a user can BE does not add a place a calorie target can come
  * from.
  *
- * `twice` (the logging claim, one cited study), `baseline` (the BMI the user's own height and weight
- * compute, and the verdict band that number falls in) and `possible` (the target's distance, said
- * back) sit between the questions that feed them. They read the profile and write nothing; their
- * words are code in `onboarding-chat-copy.ts`, never admin copy, because two of them carry a health
- * claim. `ontrack` is the with-plan-vs-without chart beat and reads the first `struggles` pick for its
- * caption. `how` is the three-beat "how it works" picture. Both sit after the questions, before the plan. `signup` is the
+ * `baseline` (the BMI the user's own height and weight compute, on a neutral bar) and `prelim`
+ * (the mid-journey plan: burn versus the number the answers produce) sit between the questions
+ * that feed them. They read the profile and write nothing; their words are code in
+ * `onboarding-chat-copy.ts`, never admin copy, because one of them carries a health number.
+ * `signup` is the
  * account step between the plan and `country` — it belongs to the sign-in surface, and this list
  * only holds its place in the order. `referral` is the optional friend's-link step after the
  * country (#899) — it stores nothing on the profile; a code is applied by its own route, and the
@@ -119,15 +121,12 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * on the web alike. `health` is the post-sign-up Apple Health offer; on a surface
  * without it (the browser) the prompt is not emitted — see `promptsFor`.
  *
- * `struggles` MOVED OUT of this list in v2: it is a stored field now (`Profile.struggles`), so it
- * is a screen like any other.
- *
  * They are all places analytics counts, because the funnel's job is to price them. A beat that
  * costs more people than it convinces has to be visible as a drop between two rows.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const ONBOARDING_INTERSTITIALS = [
-  "welcome", "twice", "baseline", "possible", "how", "ontrack", "summary", "signup", "referral", "health",
+  "welcome", "baseline", "prelim", "summary", "signup", "referral", "health",
 ] as const;
 export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
 
@@ -139,8 +138,8 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  * in an order the replies depend on, so an admin cannot reorder them.
  */
 export const ONBOARDING_PLACES = [
-  "welcome", "goal", "sex", "twice", "age", "height", "weight", "baseline", "activity", "target", "possible",
-  "pace", "struggles", "streak", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "referral", "health",
+  "welcome", "goal", "sex", "age", "height", "weight", "activity", "baseline", "target",
+  "pace", "prelim", "counted", "barrier", "situation", "diet", "medical", "summary", "signup", "country", "referral", "health", "streak",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
@@ -148,12 +147,13 @@ export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
  * The progress dash's segments — the places between the welcome and the plan, in walk order
  * (`onboarding/*` boards, fourteen `<i>` each).
  *
- * The welcome is before the count; `signup`, `country`, `referral` and `health` sit past it. So
- * the bar is `ONBOARDING_PLACES` minus those five, and
+ * The welcome is before the count; `signup`, `country`, `referral`, `health` and `streak` sit
+ * past it (the streak goal is asked after the first verdict, not inside the questions). So
+ * the bar is `ONBOARDING_PLACES` minus those six, and
  * `summary` — the plan — is the last segment lit.
  */
 export const DASH_PLACES: readonly OnboardingPlace[] = ONBOARDING_PLACES.filter(
-  (p) => !["welcome", "signup", "country", "referral", "health"].includes(p),
+  (p) => !["welcome", "signup", "country", "referral", "health", "streak"].includes(p),
 );
 
 /** The dash position of a place, or -1 for a place that is not a segment (the welcome et al.). */
@@ -188,11 +188,13 @@ export const SCREEN_FIELDS: Record<OnboardingScreenId, readonly OnboardingStep[]
   activity: ["activity"],
   target: ["target_weight_kg"],
   pace: ["pace"],
-  struggles: ["struggles"],
-  streak: ["streak_goal_days"],
+  counted: ["counted_before"],
+  barrier: ["barriers"],
+  situation: ["situations"],
   diet: ["diet"],
   medical: ["medical"],
   country: ["country"],
+  streak: ["streak_goal_days"],
 };
 
 /**
@@ -268,6 +270,12 @@ export interface OnboardingOptionContent {
  */
 export interface OnboardingAskContent {
   lines: string[];
+  /**
+   * Headline variants, keyed by the `counted_before` answer that selects them — the question is
+   * the same, the wording speaks to the branch ("What would you want easier?" after "I count
+   * now"). `askLines` falls back to `lines` when the key is absent or the field was never asked.
+   */
+  variants?: Record<string, string[]>;
   /** The composer's placeholder while this question is open. Typed questions only. */
   placeholder?: string;
 }
@@ -327,7 +335,7 @@ export interface OnboardingScreenContent {
 export interface OnboardingWelcomeContent {
   /** The headline, then its subtitle (ieat-app#2050): "A plan built around you" / "Your goal, your day, your meals". */
   lines: string[];
-  /** The primary button — "Build my plan". */
+  /** The primary button — "Start". */
   cta: string;
   /** The second door — "I already have an account". */
   signin: string;
@@ -686,7 +694,10 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
   sex: SEXES,
   activity: ACTIVITY_LEVELS,
   pace: PACES,
-  struggles: STRUGGLES,
+  counted: COUNTED_BEFORE,
+  // The full stored vocabulary — `screenOptionValues` narrows it by goal for the renderer.
+  barrier: BARRIERS,
+  situation: SITUATIONS,
   streak: STREAK_GOALS.map(String),
   diet: DIETS,
   // "none" is a drawn row ("None of these"), not a tag — answering with it stores [].
@@ -702,8 +713,19 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
  * that want sorting by the alphabet of whoever is reading. Both clients call this rather than
  * indexing the constant, so neither has to know which screens are which.
  */
-export const screenOptionValues = (id: OnboardingScreenId, lang: Lang): readonly string[] =>
-  id === "country" ? countryOptions(lang) : SCREEN_OPTIONS[id] ?? [];
+export const screenOptionValues = (id: OnboardingScreenId, lang: Lang, goal: Goal | null = null): readonly string[] =>
+  id === "country" ? countryOptions(lang) : id === "barrier" ? barrierValues(goal) : SCREEN_OPTIONS[id] ?? [];
+
+/**
+ * The barrier options this goal is offered: the six everyone sees, plus the one that names this
+ * branch's own failure — a maintainer's "My weight kept creeping back", a gainer's "Hard to eat
+ * enough". Neither exists for a loser, whose branch ends at `nobody`. `null` is answered as the
+ * base list: the question runs after the goal is picked, so a missing goal means a stale walk.
+ */
+export function barrierValues(goal: Goal | null | undefined): readonly Barrier[] {
+  const extra = goal === "maintain" ? "creeping" : goal === "gain" ? "not_enough" : null;
+  return extra === null ? BARRIERS.slice(0, 6) : [...BARRIERS.slice(0, 6), extra];
+}
 
 /**
  * The fallback label for an option the content does not name — CLDR's, or the bare value.
@@ -809,10 +831,15 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  // v18 (eait#719, the Oct 2026 polish): the `struggles` screen is replaced by `counted`,
+  // `barrier` and `situation`; a stored v17 revision has no asks for them, so `usableContent`
+  // retires it and every language falls back to this. Same bump for the welcome line, "Height",
+  // "Your weight" and "Where do you eat?" — different words under the same number is the average
+  // the counter exists to prevent.
+  version: 18,
   welcome: {
-    lines: ["A plan built around you", "Your goal, your day, your meals"],
-    cta: "Build my plan",
+    lines: ["Count calories with a photo"],
+    cta: "Start",
     signin: "I already have an account",
   },
   screens: [
@@ -852,7 +879,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["What's your height?"],
+          lines: ["Height"],
           placeholder: "Height in cm",
         },
       },
@@ -861,7 +888,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["What do you weigh today?"],
+          lines: ["Your weight"],
           placeholder: "Weight in kg",
         },
       },
@@ -903,28 +930,55 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
+      id: "counted",
       asks: {
-        struggles: { lines: ["What's been hard?"] },
+        counted_before: { lines: ["Counted calories before?"] },
       },
       options: {
-        consistency: { label: "Lack of consistency" },
-        habits: { label: "Unhealthy eating habits" },
-        support: { label: "Lack of support" },
-        busy: { label: "Busy schedule" },
-        ideas: { label: "Lack of meal inspiration" },
+        never: { label: "Never" },
+        stopped: { label: "Tried, stopped" },
+        onoff: { label: "On and off" },
+        now: { label: "I count now" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Pick a streak to aim for"] },
+        barriers: {
+          lines: ["What stopped you?", "Pick all that fit"],
+          variants: {
+            onoff: ["What got in the way?", "Pick all that fit"],
+            now: ["What would you want easier?", "Pick all that fit"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 days" },
-        "14": { label: "14 days" },
-        "30": { label: "30 days" },
-        "50": { label: "50 days" },
+        too_long: { label: "It took too long" },
+        forgot: { label: "I forgot" },
+        invisible: { label: "I couldn't see it working" },
+        no_idea: { label: "I didn't know what to eat" },
+        stressful: { label: "It felt stressful" },
+        nobody: { label: "Nobody to ask" },
+        creeping: { label: "My weight kept creeping back" },
+        not_enough: { label: "Hard to eat enough" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["When is logging hardest?"],
+          variants: {
+            never: ["When do you expect logging to be hardest?"],
+          },
+        },
+      },
+      options: {
+        workdays: { label: "Busy workdays" },
+        eating_out: { label: "Eating out" },
+        cooking: { label: "Cooking for others" },
+        snacks: { label: "Snacks and drinks" },
+        evenings: { label: "Evenings and weekends" },
       },
     },
     {
@@ -957,7 +1011,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Where do you live?"], placeholder: "Search" },
+        country: { lines: ["Where do you eat?"], placeholder: "Search" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -975,6 +1029,18 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Somewhere else" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Pick a streak to aim for"] },
+      },
+      options: {
+        "7": { label: "7 days" },
+        "14": { label: "14 days" },
+        "30": { label: "30 days" },
+        "50": { label: "50 days" },
       },
     },
   ],
@@ -1140,6 +1206,19 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
         const a = asks[field] as Record<string, unknown> | undefined;
         if (typeof a !== "object" || a === null) { push(`${at}.asks is missing "${field}"`); continue; }
         bubbles(a.lines, `${at}.asks.${field}.lines`, MAX_ASK_LINES);
+        if (a.variants !== undefined) {
+          if (typeof a.variants !== "object" || a.variants === null) {
+            push(`${at}.asks.${field}.variants must be an object`);
+          } else {
+            for (const [key, lines] of Object.entries(a.variants as Record<string, unknown>)) {
+              if (!(COUNTED_BEFORE as readonly string[]).includes(key)) {
+                push(`${at}.asks.${field}.variants has "${key}", which no answer selects`);
+              } else {
+                bubbles(lines, `${at}.asks.${field}.variants.${key}`, MAX_ASK_LINES);
+              }
+            }
+          }
+        }
         if (a.placeholder !== undefined
           && (!isStr(a.placeholder) || a.placeholder.trim() === "" || a.placeholder.length > MAX_LABEL)) {
           push(`${at}.asks.${field}.placeholder must be a non-empty string under ${MAX_LABEL} characters`);
@@ -1440,7 +1519,8 @@ export interface OnboardingEvent {
  * The enumerated picks are reportable — a tag list is already what `restrictions` sent — while a
  * typed number or free text never is. */
 export const REPORTABLE_FIELDS: readonly OnboardingStep[] = [
-  "goal", "sex", "activity", "pace", "struggles", "streak_goal_days", "diet", "medical", "country",
+  "goal", "sex", "activity", "pace", "counted_before", "barriers", "situations",
+  "streak_goal_days", "diet", "medical", "country",
 ];
 
 export function isReportableField(field: string): boolean {

@@ -11,7 +11,7 @@ test("a person signs in, answers the questions, and reaches their plan", async (
   const profile = {
     user_id: "pw", lang: "en", goal: "lose", sex: "male", birth_year: 1988,
     height_cm: 182, weight_kg: 98, weight_measured_at: null, target_weight_kg: 92,
-    activity: "some", pace: "steady", units: null, struggles: null, streak_goal_days: 14, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: "de", restrictions: ["ldl"],
+    activity: "some", pace: "steady", units: null, struggles: null, counted_before: null, barriers: null, situations: null, streak_goal_days: 14, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: "de", restrictions: ["ldl"],
     medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: new Date().toISOString(),
   } satisfies Profile;

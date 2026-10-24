@@ -6,8 +6,10 @@
 
 import { kcalNumbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { LANGS, STRUGGLES } from "./types.ts";
-import type { FoodTargets, Goal, Lang, MealVerdicts, Struggle } from "./types.ts";
+import { BARRIERS, LANGS, SITUATIONS, STARTER_FOR_PICK, STARTER_KEYS } from "./types.ts";
+import type {
+  Barrier, FoodTargets, Goal, Lang, MealVerdicts, Profile, Situation, StarterKey,
+} from "./types.ts";
 import { verdictNoun } from "./verdicts.ts";
 
 /**
@@ -120,28 +122,40 @@ export function scriptedLine(
 
 /**
  * What the Chat tab offers when nothing live is on screen: three things the coach can do, worded
- * as the user would send them, because a tap sends the words verbatim (S9). One starter exists
- * per struggle; the profile's picks come FIRST, in `STRUGGLES` list order rather than tap order,
+ * as the user would send them, because a tap sends the words verbatim (S9). Onboarding's barrier
+ * and situation picks choose them (the reader the retired `struggles` question fed): each pick
+ * maps to the starter it earns, in `BARRIERS`-then-`SITUATIONS` list order rather than tap order,
  * and the unpicked fill what is left to three — so no pick is read by nothing, and a profile that
  * was never asked gets the list's first three.
  */
 
-export function startersFor(picked: readonly Struggle[] | null | undefined, lang: Lang): string[] {
-  return starterRowsFor(picked, lang).map((s) => s.text);
+// `StarterKey`, `STARTER_KEYS` and `STARTER_FOR_PICK` live in `types.ts`: the bundle's starter
+// table (`app/chat-copy.ts`) reads the same mapping and cannot reach this module's lingui import.
+
+export function startersFor(
+  p: Pick<Profile, "barriers" | "situations" | "goal">,
+  lang: Lang,
+): string[] {
+  return starterRowsFor(p, lang).map((s) => s.text);
 }
 
 /**
- * The starters WITH the struggle each belongs to — the words-only `startersFor` cannot pair one
+ * The starters WITH the key each belongs to — the words-only `startersFor` cannot pair one
  * with its icon, and a second ordering written beside this one is the drift it exists to prevent.
  */
 export function starterRowsFor(
-  picked: readonly Struggle[] | null | undefined,
+  p: Pick<Profile, "barriers" | "situations" | "goal">,
   lang: Lang,
-): { struggle: Struggle; text: string }[] {
+): { key: StarterKey; text: string }[] {
   const starters = threadCopyFor(lang).coachStarters;
-  const chosen = STRUGGLES.filter((s) => picked?.includes(s));
-  const rest = STRUGGLES.filter((s) => !picked?.includes(s));
-  return [...chosen, ...rest].slice(0, 3).map((s) => ({ struggle: s, text: starters[s] }));
+  const picked = [...BARRIERS, ...SITUATIONS].filter(
+    (s) => (BARRIERS as readonly string[]).includes(s) ? p.barriers?.includes(s as Barrier) : p.situations?.includes(s as Situation),
+  );
+  const chosen = [...new Set(picked.map((s) => STARTER_FOR_PICK[s]))];
+  // `eatmore` fills only on the branch that can have picked it: a loser offered "an easy way to
+  // eat more today" is a starter written for nobody.
+  const rest = STARTER_KEYS.filter((k) => !chosen.includes(k) && (k !== "eatmore" || p.goal === "gain"));
+  return [...chosen, ...rest].slice(0, 3).map((key) => ({ key, text: starters[key] }));
 }
 
 /**

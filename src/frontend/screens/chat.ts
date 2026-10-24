@@ -270,7 +270,8 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
       hi.append(sayBlock((col) => col.append(el("p", "d say-hi", copy().greeting), el("div", "ts", timeFmt(new Date())))));
       const card = el("li", `them opts${rise("starters", idx++)}`);
       card.append(optCard(
-        starterRows(me?.profile.struggles ?? null, lang).map((s) => ({ icon: STARTER_ICONS[s.struggle], text: s.text })),
+        starterRows(me?.profile ?? { barriers: null, situations: null, goal: null }, lang)
+          .map((s) => ({ icon: STARTER_ICONS[s.key], text: s.text })),
         sendText,
       ));
       list.append(hi, card);

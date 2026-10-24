@@ -5100,6 +5100,19 @@
         "additionalProperties": false,
         "description": "`GET /v1/diary/average` — one week's daily average and energy (#893)."
       },
+      "Barrier": {
+        "type": "string",
+        "enum": [
+          "too_long",
+          "forgot",
+          "invisible",
+          "no_idea",
+          "stressful",
+          "nobody",
+          "creeping",
+          "not_enough"
+        ]
+      },
       "BmiRange": {
         "type": "string",
         "enum": [
@@ -5352,26 +5365,25 @@
         "enum": [
           "welcome",
           "goal",
-          "how",
           "sex",
-          "twice",
           "birth_year",
           "height_cm",
           "weight_kg",
           "baseline",
           "activity",
           "target_weight_kg",
-          "possible",
           "pace",
-          "struggles",
-          "streak_goal_days",
-          "ontrack",
+          "prelim",
+          "counted_before",
+          "barriers",
+          "situations",
           "diet",
           "medical",
           "summary",
           "signup",
           "country",
-          "health"
+          "health",
+          "streak_goal_days"
         ],
         "description": "Everything Spud asks or shows, in the order a user meets it (`ONBOARDING_PLACES`).\n\nA prompt with a `field` fills a profile column and its answer survives the app being killed. A prompt without one is conversation: asked while the run is live, skipped on a resume that has already passed it (see `resumeAt`)."
       },
@@ -5432,6 +5444,15 @@
           {
             "$ref": "#/components/schemas/Refusal"
           }
+        ]
+      },
+      "CountedBefore": {
+        "type": "string",
+        "enum": [
+          "never",
+          "stopped",
+          "onoff",
+          "now"
         ]
       },
       "DailyTotals": {
@@ -8102,6 +8123,16 @@
               "type": "string"
             }
           },
+          "variants": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Headline variants, keyed by the `counted_before` answer that selects them — the question is the same, the wording speaks to the branch (\"What would you want easier?\" after \"I count now\"). `askLines` falls back to `lines` when the key is absent or the field was never asked."
+          },
           "placeholder": {
             "type": "string",
             "description": "The composer's placeholder while this question is open. Typed questions only."
@@ -8238,19 +8269,11 @@
           "lang": {
             "$ref": "#/components/schemas/Lang",
             "description": "Which language this revision is in (#358).\n\nSENT rather than assumed, and it is the same rule `Limits` follows: the client asked with `?lang=` or let the account answer, and only the server knows which it used. A client that assumed its own guess came back would cache German copy under `it` the first time a code it sent was one this server does not carry."
-          },
-          "peopleBuilding": {
-            "type": [
-              "number",
-              "null"
-            ],
-            "description": "How many accounts finished onboarding in the last 24 hours — the loader's \"43 people are building their plan with eait\" (ieat-app#2050). Null when the server could not count; a client draws the line only for a positive number."
           }
         },
         "required": [
           "content",
-          "lang",
-          "peopleBuilding"
+          "lang"
         ],
         "additionalProperties": false,
         "description": "The onboarding copy, as this server currently has it.\n\nThe app ships with `DEFAULT_ONBOARDING_CONTENT` compiled in and renders from that immediately, then replaces it when this arrives. So the fetch is an ENHANCEMENT, never a gate: an onboarding that waits for the network is an onboarding that shows a spinner as its first screen."
@@ -8336,11 +8359,8 @@
         "type": "string",
         "enum": [
           "welcome",
-          "twice",
           "baseline",
-          "possible",
-          "how",
-          "ontrack",
+          "prelim",
           "summary",
           "signup",
           "referral",
@@ -8415,11 +8435,13 @@
           "activity",
           "target",
           "pace",
-          "struggles",
-          "streak",
+          "counted",
+          "barrier",
+          "situation",
           "diet",
           "medical",
-          "country"
+          "country",
+          "streak"
         ]
       },
       "OnboardingSummaryContent": {
@@ -8496,7 +8518,7 @@
           },
           "cta": {
             "type": "string",
-            "description": "The primary button — \"Build my plan\"."
+            "description": "The primary button — \"Start\"."
           },
           "signin": {
             "type": "string",
@@ -8655,6 +8677,45 @@
               }
             ],
             "description": "The \"what's been hard\" picks — stored, so `null` = not asked and `[]` = asked, nothing picked. Resume reads that difference; a client sending `null` clears it back to unasked."
+          },
+          "counted_before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CountedBefore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The \"counted calories before\" pick — `null` clears it back to unasked."
+          },
+          "barriers": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Barrier"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The \"what gets in the way\" picks — same stored semantics as `struggles`: `null` = not asked, `[]` = asked, nothing picked."
+          },
+          "situations": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Situation"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The \"when is it hardest\" picks — `null` = not asked, `[]` = asked, nothing picked."
           },
           "streak_goal_days": {
             "anyOf": [
@@ -9185,6 +9246,44 @@
             ],
             "description": "The \"what's been hard\" picks, stored in LIST order (`STRUGGLES`). `null` = the question was never asked — that distinction is what resume checks: an empty array is an answer, `null` is an interruption."
           },
+          "counted_before": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CountedBefore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "\"Counted calories before?\" — null = never asked. Branches the two questions after it."
+          },
+          "barriers": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Barrier"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The \"what stopped you\" and \"where logging is hard\" picks, stored in LIST order like `struggles`: `null` is never-asked, `[]` is asked-and-nothing-picked. They order Chat's starters — the reader the retired `struggles` question fed."
+          },
+          "situations": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Situation"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "streak_goal_days": {
             "anyOf": [
               {
@@ -9290,6 +9389,9 @@
           "pace",
           "units",
           "struggles",
+          "counted_before",
+          "barriers",
+          "situations",
           "streak_goal_days",
           "fiber_goal_g",
           "sugar_goal_g",
@@ -9331,6 +9433,9 @@
               "pace",
               "units",
               "struggles",
+              "counted_before",
+              "barriers",
+              "situations",
               "streak_goal_days",
               "fiber_goal_g",
               "sugar_goal_g",
@@ -10013,6 +10118,16 @@
           "other"
         ],
         "description": "Biological sex. Required by every published BMR equation; asked for that reason and no other."
+      },
+      "Situation": {
+        "type": "string",
+        "enum": [
+          "workdays",
+          "eating_out",
+          "cooking",
+          "snacks",
+          "evenings"
+        ]
       },
       "StreakGoal": {
         "type": "number",

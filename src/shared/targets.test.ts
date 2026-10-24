@@ -13,7 +13,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: "maintain", sex: "female", birth_year: 1990,
     height_cm: 165, weight_kg: 70, weight_measured_at: null, target_weight_kg: 65,
-    activity: "few", pace: "steady", units: null, struggles: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true,
+    activity: "few", pace: "steady", units: null, struggles: null, counted_before: null, barriers: null, situations: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true,
     country: "de", restrictions: [], medical_limitations: null, food_allergies: null,
     product_limitations: null, onboarded_at: "2026-01-01T00:00:00Z",
     ...over,

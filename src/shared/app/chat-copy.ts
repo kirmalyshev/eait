@@ -30,7 +30,10 @@
 // is a symbol inside the template — "{n}г" — never a declined word.
 
 import { t, type Localized } from "../lang.ts";
-import { STRUGGLES, type Lang, type Struggle } from "../types.ts";
+import {
+  BARRIERS, SITUATIONS, STARTER_FOR_PICK, STARTER_KEYS,
+  type Barrier, type Lang, type Profile, type Situation, type StarterKey,
+} from "../types.ts";
 import type { IconName } from "../ui/icons.ts";
 
 export interface ChatScreenCopy {
@@ -78,11 +81,12 @@ export interface ChatScreenCopy {
   macroEaten: string;
   macroTarget: string;
   /**
-   * The first-open starter rows (`chat-empty.html`, both clients), keyed by the struggle each
-   * asks. The words are `THREAD_COPY`'s `coachStarters` values restated as a Localized map —
-   * the bundle has no catalog (#145), so the row text must sit in a table it can read.
+   * The first-open starter rows (`chat-empty.html`, both clients), keyed by the `StarterKey` each
+   * asks — the five struggles plus `eatmore`, the gainer's own. The words are `THREAD_COPY`'s
+   * `coachStarters` values restated as a Localized map — the bundle has no catalog (#145), so
+   * the row text must sit in a table it can read.
    */
-  starters: Record<Struggle, string>;
+  starters: Record<StarterKey, string>;
   /**
    * The meal named on ONE line — the focus sheet's caption and the thread's shrunken card alike:
    * "{name} — {kcal}", `names()` and `kcal()` either side, never a literal join in code.
@@ -261,7 +265,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "No",
     expired: "That one timed out. Describe it again and I'll re-read it.",
     macroLabels: { protein: "Protein", carbs: "Carbs", fat: "Fat", kcal: "Calories", satfat: "Saturated fat" },
-    starters: { consistency: "How's my week going?", habits: "What's a lighter swap for dinner?", support: "Am I getting enough protein?", busy: "I'll just tell you what I ate", ideas: "What should I eat tonight?" },
+    starters: { consistency: "How's my week going?", habits: "What's a lighter swap for dinner?", support: "Am I getting enough protein?", busy: "I'll just tell you what I ate", ideas: "What should I eat tonight?", eatmore: "What's an easy way to eat more today?" },
     macroEaten: "{value}",
     macroTarget: "of {target}{unit}",
     loadFailed: "Couldn't load the conversation.",
@@ -356,7 +360,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Non",
     expired: "Celui-là a expiré. Décris-le à nouveau et je le relis.",
     macroLabels: { protein: "Protéines", carbs: "Glucides", fat: "Lipides", kcal: "Calories", satfat: "Graisses saturées" },
-    starters: { consistency: "Ma semaine se passe comment ?", habits: "Une alternative plus légère pour le dîner ?", support: "J'ai assez de protéines ?", busy: "Je te dis juste ce que j'ai mangé", ideas: "Je mange quoi ce soir ?" },
+    starters: { consistency: "Ma semaine se passe comment ?", habits: "Une alternative plus légère pour le dîner ?", support: "J'ai assez de protéines ?", busy: "Je te dis juste ce que j'ai mangé", ideas: "Je mange quoi ce soir ?", eatmore: "C'est quoi une façon simple de manger plus aujourd'hui ?" },
     macroEaten: "{value}",
     macroTarget: "sur {target}{unit}",
     loadFailed: "Impossible de charger la conversation.",
@@ -451,7 +455,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nein",
     expired: "Das ist abgelaufen. Beschreib es noch einmal, dann lese ich es neu.",
     macroLabels: { protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett", kcal: "Kalorien", satfat: "Gesättigte Fettsäuren" },
-    starters: { consistency: "Wie läuft meine Woche?", habits: "Wie mache ich das Abendessen leichter?", support: "Bekomme ich genug Protein?", busy: "Ich sage dir einfach, was ich gegessen habe", ideas: "Was soll ich heute Abend essen?" },
+    starters: { consistency: "Wie läuft meine Woche?", habits: "Wie mache ich das Abendessen leichter?", support: "Bekomme ich genug Protein?", busy: "Ich sage dir einfach, was ich gegessen habe", ideas: "Was soll ich heute Abend essen?", eatmore: "Was ist ein einfacher Weg, heute mehr zu essen?" },
     macroEaten: "{value}",
     macroTarget: "von {target}{unit}",
     loadFailed: "Die Unterhaltung konnte nicht geladen werden.",
@@ -546,7 +550,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "No",
     expired: "Tempo scaduto. Descrivilo di nuovo e lo rileggo.",
     macroLabels: { protein: "Proteine", carbs: "Carboidrati", fat: "Grassi", kcal: "Calorie", satfat: "Grassi saturi" },
-    starters: { consistency: "Come sta andando la settimana?", habits: "Un'alternativa più leggera per cena?", support: "Sto prendendo abbastanza proteine?", busy: "Ti dico solo cosa ho mangiato", ideas: "Cosa mangio stasera?" },
+    starters: { consistency: "Come sta andando la settimana?", habits: "Un'alternativa più leggera per cena?", support: "Sto prendendo abbastanza proteine?", busy: "Ti dico solo cosa ho mangiato", ideas: "Cosa mangio stasera?", eatmore: "Qual è un modo semplice per mangiare di più oggi?" },
     macroEaten: "{value}",
     macroTarget: "su {target}{unit}",
     loadFailed: "Impossibile caricare la conversazione.",
@@ -641,7 +645,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "No",
     expired: "Esa caducó. Descríbela otra vez y la vuelvo a leer.",
     macroLabels: { protein: "Proteína", carbs: "Carbohidratos", fat: "Grasas", kcal: "Calorías", satfat: "Grasas saturadas" },
-    starters: { consistency: "¿Cómo va mi semana?", habits: "¿Una alternativa más ligera para la cena?", support: "¿Estoy tomando suficiente proteína?", busy: "Te digo lo que he comido y ya", ideas: "¿Qué ceno hoy?" },
+    starters: { consistency: "¿Cómo va mi semana?", habits: "¿Una alternativa más ligera para la cena?", support: "¿Estoy tomando suficiente proteína?", busy: "Te digo lo que he comido y ya", ideas: "¿Qué ceno hoy?", eatmore: "¿Cuál es una forma fácil de comer más hoy?" },
     macroEaten: "{value}",
     macroTarget: "de {target}{unit}",
     loadFailed: "No se pudo cargar la conversación.",
@@ -736,7 +740,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Không",
     expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
     macroLabels: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo", kcal: "Calo", satfat: "Chất béo bão hòa" },
-    starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Mình sẽ kể mình đã ăn gì", ideas: "Tối nay nên ăn gì?" },
+    starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Mình sẽ kể mình đã ăn gì", ideas: "Tối nay nên ăn gì?", eatmore: "Cách dễ dàng để ăn nhiều hơn hôm nay là gì?" },
     macroEaten: "{value}",
     macroTarget: "trên {target}{unit}",
     loadFailed: "Không tải được cuộc trò chuyện.",
@@ -831,7 +835,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Tidak",
     expired: "Yang itu kedaluwarsa. Deskripsikan lagi dan aku baca ulang.",
     macroLabels: { protein: "Protein", carbs: "Karbohidrat", fat: "Lemak", kcal: "Kalori", satfat: "Lemak jenuh" },
-    starters: { consistency: "Bagaimana mingguku?", habits: "Ada alternatif lebih ringan untuk makan malam?", support: "Proteinku sudah cukup belum?", busy: "Aku kasih tahu saja apa yang kumakan", ideas: "Malam ini sebaiknya makan apa?" },
+    starters: { consistency: "Bagaimana mingguku?", habits: "Ada alternatif lebih ringan untuk makan malam?", support: "Proteinku sudah cukup belum?", busy: "Aku kasih tahu saja apa yang kumakan", ideas: "Malam ini sebaiknya makan apa?", eatmore: "Apa cara mudah untuk makan lebih banyak hari ini?" },
     macroEaten: "{value}",
     macroTarget: "dari {target}{unit}",
     loadFailed: "Tidak bisa memuat percakapan.",
@@ -926,7 +930,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Нет",
     expired: "Время вышло. Опиши ещё раз, и я перечитаю.",
     macroLabels: { protein: "Белок", carbs: "Углеводы", fat: "Жиры", kcal: "Калории", satfat: "Насыщенные жиры" },
-    starters: { consistency: "Как у меня идёт неделя?", habits: "Как сделать ужин полегче?", support: "Мне хватает белка?", busy: "Просто скажу, что было на тарелке", ideas: "Что съесть сегодня вечером?" },
+    starters: { consistency: "Как у меня идёт неделя?", habits: "Как сделать ужин полегче?", support: "Мне хватает белка?", busy: "Просто скажу, что было на тарелке", ideas: "Что съесть сегодня вечером?", eatmore: "Какой простой способ съесть сегодня больше?" },
     macroEaten: "{value}",
     macroTarget: "из {target}{unit}",
     loadFailed: "Не удалось загрузить переписку.",
@@ -1021,7 +1025,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "వద్దు",
     expired: "దాని సమయం ముగిసింది. మళ్ళీ వివరించండి, నేను మళ్ళీ చదువుతాను.",
     macroLabels: { protein: "ప్రోటీన్", carbs: "కార్బ్స్", fat: "కొవ్వు", kcal: "కేలరీలు", satfat: "సంతృప్త కొవ్వు" },
-    starters: { consistency: "నా వారం ఎలా సాగుతోంది?", habits: "రాత్రి భోజనానికి తేలికైన ప్రత్యామ్నాయం ఏమిటి?", support: "నాకు తగినంత ప్రోటీన్ అందుతోందా?", busy: "నేను తిన్నది మీకు చెప్పేస్తాను", ideas: "ఈ రాత్రి నేను ఏం తినాలి?" },
+    starters: { consistency: "నా వారం ఎలా సాగుతోంది?", habits: "రాత్రి భోజనానికి తేలికైన ప్రత్యామ్నాయం ఏమిటి?", support: "నాకు తగినంత ప్రోటీన్ అందుతోందా?", busy: "నేను తిన్నది మీకు చెప్పేస్తాను", ideas: "ఈ రాత్రి నేను ఏం తినాలి?", eatmore: "ఈరోజు ఎక్కువ తినడానికి సులభమైన మార్గం ఏమిటి?" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "సంభాషణను లోడ్ చేయడం కుదరలేదు.",
@@ -1116,7 +1120,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "இல்லை",
     expired: "நேரம் முடிந்துவிட்டது. மீண்டும் விவரியுங்கள், நான் மீண்டும் படிக்கிறேன்.",
     macroLabels: { protein: "புரதம்", carbs: "கார்ப்ஸ்", fat: "கொழுப்பு", kcal: "கலோரிகள்", satfat: "நிறைவுற்ற கொழுப்பு" },
-    starters: { consistency: "என் வாரம் எப்படிப் போகிறது?", habits: "இரவு உணவுக்கு இலகுவான மாற்று என்ன?", support: "எனக்குப் போதுமான புரதம் கிடைக்கிறதா?", busy: "நான் சாப்பிட்டதைச் சொல்கிறேன்", ideas: "இன்றிரவு நான் என்ன சாப்பிடலாம்?" },
+    starters: { consistency: "என் வாரம் எப்படிப் போகிறது?", habits: "இரவு உணவுக்கு இலகுவான மாற்று என்ன?", support: "எனக்குப் போதுமான புரதம் கிடைக்கிறதா?", busy: "நான் சாப்பிட்டதைச் சொல்கிறேன்", ideas: "இன்றிரவு நான் என்ன சாப்பிடலாம்?", eatmore: "இன்று அதிகம் சாப்பிட எளிய வழி என்ன?" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "உரையாடலை ஏற்ற முடியவில்லை.",
@@ -1211,7 +1215,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "ਨਹੀਂ",
     expired: "ਉਸਦਾ ਸਮਾਂ ਖ਼ਤਮ ਹੋ ਗਿਆ। ਦੁਬਾਰਾ ਦੱਸੋ, ਅਸੀਂ ਫਿਰ ਤੋਂ ਪੜ੍ਹ ਲਵਾਂਗੇ।",
     macroLabels: { protein: "ਪ੍ਰੋਟੀਨ", carbs: "ਕਾਰਬਸ", fat: "ਫ਼ੈਟ", kcal: "ਕੈਲੋਰੀਆਂ", satfat: "ਸੈਚੁਰੇਟਿਡ ਫ਼ੈਟ" },
-    starters: { consistency: "ਮੇਰਾ ਹਫ਼ਤਾ ਕਿਵੇਂ ਚੱਲ ਰਿਹਾ ਹੈ?", habits: "ਰਾਤ ਦੇ ਖਾਣੇ ਲਈ ਹਲਕਾ ਬਦਲ ਕੀ ਹੈ?", support: "ਕੀ ਮੈਨੂੰ ਕਾਫ਼ੀ ਪ੍ਰੋਟੀਨ ਮਿਲ ਰਿਹਾ ਹੈ?", busy: "ਮੈਂ ਕੀ ਖਾਧਾ, ਬੱਸ ਉਹ ਦੱਸਣਾ ਹੈ", ideas: "ਅੱਜ ਰਾਤ ਮੈਂ ਕੀ ਖਾਵਾਂ?" },
+    starters: { consistency: "ਮੇਰਾ ਹਫ਼ਤਾ ਕਿਵੇਂ ਚੱਲ ਰਿਹਾ ਹੈ?", habits: "ਰਾਤ ਦੇ ਖਾਣੇ ਲਈ ਹਲਕਾ ਬਦਲ ਕੀ ਹੈ?", support: "ਕੀ ਮੈਨੂੰ ਕਾਫ਼ੀ ਪ੍ਰੋਟੀਨ ਮਿਲ ਰਿਹਾ ਹੈ?", busy: "ਮੈਂ ਕੀ ਖਾਧਾ, ਬੱਸ ਉਹ ਦੱਸਣਾ ਹੈ", ideas: "ਅੱਜ ਰਾਤ ਮੈਂ ਕੀ ਖਾਵਾਂ?", eatmore: "ਅੱਜ ਵੱਧ ਖਾਣ ਦਾ ਸੌਖਾ ਤਰੀਕਾ ਕੀ ਹੈ?" },
     macroEaten: "{value}",
     macroTarget: "{target}{unit} ਵਿੱਚੋਂ",
     loadFailed: "ਗੱਲਬਾਤ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ।",
@@ -1306,7 +1310,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "ନା",
     expired: "ତାହାର ସମୟ ସରିଗଲା। ପୁଣି ବର୍ଣ୍ଣନା କରନ୍ତୁ, ମୁଁ ପୁଣି ପଢ଼ିବି।",
     macroLabels: { protein: "ପ୍ରୋଟିନ୍", carbs: "କାର୍ବସ୍", fat: "ଫ୍ୟାଟ୍", kcal: "କ୍ୟାଲୋରୀ", satfat: "ସାଚୁରେଟେଡ୍ ଫ୍ୟାଟ୍" },
-    starters: { consistency: "ମୋ ସପ୍ତାହ କେମିତି ଚାଲିଛି?", habits: "ରାତ୍ରି ଭୋଜନ ପାଇଁ ଏକ ହାଲୁକା ବିକଳ୍ପ କ'ଣ?", support: "ମୁଁ ଯଥେଷ୍ଟ ପ୍ରୋଟିନ୍ ପାଉଛି କି?", busy: "ମୁଁ କ'ଣ ଖାଇଲି କେବଳ କହିଦେବି", ideas: "ଆଜି ରାତିରେ ମୁଁ କ'ଣ ଖାଇବି?" },
+    starters: { consistency: "ମୋ ସପ୍ତାହ କେମିତି ଚାଲିଛି?", habits: "ରାତ୍ରି ଭୋଜନ ପାଇଁ ଏକ ହାଲୁକା ବିକଳ୍ପ କ'ଣ?", support: "ମୁଁ ଯଥେଷ୍ଟ ପ୍ରୋଟିନ୍ ପାଉଛି କି?", busy: "ମୁଁ କ'ଣ ଖାଇଲି କେବଳ କହିଦେବି", ideas: "ଆଜି ରାତିରେ ମୁଁ କ'ଣ ଖାଇବି?", eatmore: "ଆଜି ଅଧିକ ଖାଇବାର ସହଜ ଉପାୟ କ’ଣ?" },
     macroEaten: "{value}",
     macroTarget: "{target}{unit} ରୁ",
     loadFailed: "କଥାବାର୍ତ୍ତା ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ।",
@@ -1401,7 +1405,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "नाही",
     expired: "त्याची वेळ संपली. पुन्हा वर्णन करा, मी ते पुन्हा वाचेन.",
     macroLabels: { protein: "प्रोटीन", carbs: "कार्ब्स", fat: "फॅट", kcal: "कॅलरी", satfat: "सॅच्युरेटेड फॅट" },
-    starters: { consistency: "माझा आठवडा कसा चालला आहे?", habits: "रात्रीच्या जेवणासाठी हलका पर्याय कोणता?", support: "मला पुरेसे प्रोटीन मिळत आहे का?", busy: "मी काय खाल्ले ते फक्त सांगायचे आहे", ideas: "आज रात्री मी काय खाऊ?" },
+    starters: { consistency: "माझा आठवडा कसा चालला आहे?", habits: "रात्रीच्या जेवणासाठी हलका पर्याय कोणता?", support: "मला पुरेसे प्रोटीन मिळत आहे का?", busy: "मी काय खाल्ले ते फक्त सांगायचे आहे", ideas: "आज रात्री मी काय खाऊ?", eatmore: "आज अधिक खाण्याचा सोपा मार्ग कोणता?" },
     macroEaten: "{value}",
     macroTarget: "{target}{unit} पैकी",
     loadFailed: "संभाषण लोड करता आले नाही.",
@@ -1496,7 +1500,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "വേണ്ട",
     expired: "അതിന്റെ സമയം കഴിഞ്ഞു. ഒന്നുകൂടി വിവരിക്കൂ, ഞാൻ വീണ്ടും വായിക്കാം.",
     macroLabels: { protein: "പ്രോട്ടീൻ", carbs: "കാർബ്സ്", fat: "കൊഴുപ്പ്", kcal: "കലോറി", satfat: "പൂരിത കൊഴുപ്പ്" },
-    starters: { consistency: "എന്റെ ആഴ്ച എങ്ങനെ പോകുന്നു?", habits: "അത്താഴത്തിന് ലഘുവായ ഒരു പകരം വിഭവം എന്താണ്?", support: "എനിക്ക് ആവശ്യത്തിന് പ്രോട്ടീൻ കിട്ടുന്നുണ്ടോ?", busy: "ഞാൻ കഴിച്ചത് പറഞ്ഞുതരാം", ideas: "ഇന്ന് രാത്രി ഞാൻ എന്ത് കഴിക്കണം?" },
+    starters: { consistency: "എന്റെ ആഴ്ച എങ്ങനെ പോകുന്നു?", habits: "അത്താഴത്തിന് ലഘുവായ ഒരു പകരം വിഭവം എന്താണ്?", support: "എനിക്ക് ആവശ്യത്തിന് പ്രോട്ടീൻ കിട്ടുന്നുണ്ടോ?", busy: "ഞാൻ കഴിച്ചത് പറഞ്ഞുതരാം", ideas: "ഇന്ന് രാത്രി ഞാൻ എന്ത് കഴിക്കണം?", eatmore: "ഇന്ന് കൂടുതൽ കഴിക്കാനുള്ള എളുപ്പവഴി ഏതാണ്?" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "സംഭാഷണം ലോഡ് ചെയ്യാനായില്ല.",
@@ -1591,7 +1595,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "ಬೇಡ",
     expired: "ಅದರ ಸಮಯ ಮೀರಿತು. ಮತ್ತೆ ವಿವರಿಸಿ, ನಾನು ಮತ್ತೆ ಓದುತ್ತೇನೆ.",
     macroLabels: { protein: "ಪ್ರೋಟೀನ್", carbs: "ಕಾರ್ಬ್ಸ್", fat: "ಕೊಬ್ಬು", kcal: "ಕ್ಯಾಲೊರಿ", satfat: "ಸ್ಯಾಚುರೇಟೆಡ್ ಕೊಬ್ಬು" },
-    starters: { consistency: "ನನ್ನ ವಾರ ಹೇಗೆ ಸಾಗುತ್ತಿದೆ?", habits: "ರಾತ್ರಿಯ ಊಟಕ್ಕೆ ಹಗುರವಾದ ಪರ್ಯಾಯ ಯಾವುದು?", support: "ನನಗೆ ಸಾಕಷ್ಟು ಪ್ರೋಟೀನ್ ಸಿಗುತ್ತಿದೆಯೇ?", busy: "ನಾನು ಏನು ತಿಂದೆ ಎಂದು ಸುಮ್ಮನೆ ಹೇಳುತ್ತೇನೆ", ideas: "ಇಂದು ರಾತ್ರಿ ನಾನು ಏನು ತಿನ್ನಲಿ?" },
+    starters: { consistency: "ನನ್ನ ವಾರ ಹೇಗೆ ಸಾಗುತ್ತಿದೆ?", habits: "ರಾತ್ರಿಯ ಊಟಕ್ಕೆ ಹಗುರವಾದ ಪರ್ಯಾಯ ಯಾವುದು?", support: "ನನಗೆ ಸಾಕಷ್ಟು ಪ್ರೋಟೀನ್ ಸಿಗುತ್ತಿದೆಯೇ?", busy: "ನಾನು ಏನು ತಿಂದೆ ಎಂದು ಸುಮ್ಮನೆ ಹೇಳುತ್ತೇನೆ", ideas: "ಇಂದು ರಾತ್ರಿ ನಾನು ಏನು ತಿನ್ನಲಿ?", eatmore: "ಇಂದು ಹೆಚ್ಚು ತಿನ್ನಲು ಸುಲಭವಾದ ಮಾರ್ಗ ಯಾವುದು?" },
     macroEaten: "{value}",
     macroTarget: "{target}{unit} ಪೈಕಿ",
     loadFailed: "ಸಂಭಾಷಣೆಯನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ.",
@@ -1686,7 +1690,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "ના",
     expired: "તેનો સમય પૂરો થઈ ગયો. ફરી વર્ણન કરો, હું ફરીથી વાંચીશ.",
     macroLabels: { protein: "પ્રોટીન", carbs: "કાર્બ્સ", fat: "ફેટ", kcal: "કેલરી", satfat: "સેચ્યુરેટેડ ફેટ" },
-    starters: { consistency: "મારું અઠવાડિયું કેવું ચાલી રહ્યું છે?", habits: "રાતના ભોજન માટે હળવો વિકલ્પ શું છે?", support: "શું મને પૂરતું પ્રોટીન મળી રહ્યું છે?", busy: "હું બસ જણાવી દઉં કે મેં શું ખાધું", ideas: "આજે રાત્રે હું શું ખાઉં?" },
+    starters: { consistency: "મારું અઠવાડિયું કેવું ચાલી રહ્યું છે?", habits: "રાતના ભોજન માટે હળવો વિકલ્પ શું છે?", support: "શું મને પૂરતું પ્રોટીન મળી રહ્યું છે?", busy: "હું બસ જણાવી દઉં કે મેં શું ખાધું", ideas: "આજે રાત્રે હું શું ખાઉં?", eatmore: "આજે વધુ ખાવાની સહેલી રીત કઈ છે?" },
     macroEaten: "{value}",
     macroTarget: "{target}{unit} માંથી",
     loadFailed: "વાતચીત લોડ થઈ શકી નહીં.",
@@ -1781,7 +1785,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "না",
     expired: "সময় শেষ হয়ে গেছে। আবার বর্ণনা করুন, আমি আবার পড়ে দেখব।",
     macroLabels: { protein: "প্রোটিন", carbs: "কার্বস", fat: "ফ্যাট", kcal: "ক্যালরি", satfat: "স্যাচুরেটেড ফ্যাট" },
-    starters: { consistency: "আমার সপ্তাহ কেমন যাচ্ছে?", habits: "রাতের খাবারে হালকা কী দিয়ে বদলানো যায়?", support: "আমি কি যথেষ্ট প্রোটিন পাচ্ছি?", busy: "আমি কী খেয়েছি, শুধু সেটা বলে দেব", ideas: "আজ রাতে কী খাব?" },
+    starters: { consistency: "আমার সপ্তাহ কেমন যাচ্ছে?", habits: "রাতের খাবারে হালকা কী দিয়ে বদলানো যায়?", support: "আমি কি যথেষ্ট প্রোটিন পাচ্ছি?", busy: "আমি কী খেয়েছি, শুধু সেটা বলে দেব", ideas: "আজ রাতে কী খাব?", eatmore: "আজ আরও বেশি খাওয়ার সহজ উপায় কী?" },
     macroEaten: "{value}",
     macroTarget: "{target}{unit}-এর মধ্যে",
     loadFailed: "কথোপকথন লোড করা যায়নি।",
@@ -1876,7 +1880,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Não",
     expired: "Essa expirou. Descreve-a outra vez e eu volto a ler.",
     macroLabels: { protein: "Proteína", carbs: "Hidratos", fat: "Gordura", kcal: "Calorias", satfat: "Gordura saturada" },
-    starters: { consistency: "Como está a correr a minha semana?", habits: "Que troca mais leve para o jantar?", support: "Estou a comer proteína suficiente?", busy: "Vou só dizer-te o que comi", ideas: "O que devo comer hoje à noite?" },
+    starters: { consistency: "Como está a correr a minha semana?", habits: "Que troca mais leve para o jantar?", support: "Estou a comer proteína suficiente?", busy: "Vou só dizer-te o que comi", ideas: "O que devo comer hoje à noite?", eatmore: "Qual é uma maneira fácil de comer mais hoje?" },
     macroEaten: "{value}",
     macroTarget: "de {target}{unit}",
     loadFailed: "Não foi possível carregar a conversa.",
@@ -1971,7 +1975,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Tidak",
     expired: "Yang itu tamat masa. Huraikan sekali lagi dan saya akan membacanya semula.",
     macroLabels: { protein: "Protein", carbs: "Karbohidrat", fat: "Lemak", kcal: "Kalori", satfat: "Lemak tepu" },
-    starters: { consistency: "Bagaimana minggu saya setakat ini?", habits: "Apa pilihan lebih ringan untuk makan malam?", support: "Adakah saya mendapat protein yang cukup?", busy: "Saya beritahu saja apa yang saya makan", ideas: "Apa patut saya makan malam ini?" },
+    starters: { consistency: "Bagaimana minggu saya setakat ini?", habits: "Apa pilihan lebih ringan untuk makan malam?", support: "Adakah saya mendapat protein yang cukup?", busy: "Saya beritahu saja apa yang saya makan", ideas: "Apa patut saya makan malam ini?", eatmore: "Apa cara mudah untuk makan lebih banyak hari ini?" },
     macroEaten: "{value}",
     macroTarget: "daripada {target}{unit}",
     loadFailed: "Tidak dapat memuatkan perbualan.",
@@ -2066,7 +2070,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "No",
     expired: "S'ha esgotat el temps. Torna-m'ho a descriure i ho tornaré a llegir.",
     macroLabels: { protein: "Proteïna", carbs: "Carbohidrats", fat: "Greix", kcal: "Calories", satfat: "Greix saturat" },
-    starters: { consistency: "Com va la meva setmana?", habits: "Quina alternativa més lleugera hi ha per sopar?", support: "Menjo prou proteïna?", busy: "Només et diré què he menjat", ideas: "Què hauria de sopar avui?" },
+    starters: { consistency: "Com va la meva setmana?", habits: "Quina alternativa més lleugera hi ha per sopar?", support: "Menjo prou proteïna?", busy: "Només et diré què he menjat", ideas: "Què hauria de sopar avui?", eatmore: "Quina és una manera fàcil de menjar més avui?" },
     macroEaten: "{value}",
     macroTarget: "de {target}{unit}",
     loadFailed: "No s'ha pogut carregar la conversa.",
@@ -2161,7 +2165,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Ne",
     expired: "Čas je potekel. Opiši še enkrat za novo branje.",
     macroLabels: { protein: "Beljakovine", carbs: "Ogljikovi hidrati", fat: "Maščobe", kcal: "Kalorije", satfat: "Nasičene maščobe" },
-    starters: { consistency: "Kako mi gre ta teden?", habits: "Kaj je lažja zamenjava za večerjo?", support: "Ali dobim dovolj beljakovin?", busy: "Kar povem, kaj je bilo na krožniku", ideas: "Kaj naj jem nocoj?" },
+    starters: { consistency: "Kako mi gre ta teden?", habits: "Kaj je lažja zamenjava za večerjo?", support: "Ali dobim dovolj beljakovin?", busy: "Kar povem, kaj je bilo na krožniku", ideas: "Kaj naj jem nocoj?", eatmore: "Kakšen je preprost način, da danes poješ več?" },
     macroEaten: "{value}",
     macroTarget: "od {target}{unit}",
     loadFailed: "Pogovora ni bilo mogoče naložiti.",
@@ -2256,7 +2260,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Ne",
     expired: "Vrijeme je isteklo. Opiši ponovno i opet ću pročitati.",
     macroLabels: { protein: "Proteini", carbs: "Ugljikohidrati", fat: "Masti", kcal: "Kalorije", satfat: "Zasićene masti" },
-    starters: { consistency: "Kako mi ide ovaj tjedan?", habits: "Koja je lakša zamjena za večeru?", support: "Unosim li dovoljno proteina?", busy: "Samo ću opisati obrok", ideas: "Što da jedem večeras?" },
+    starters: { consistency: "Kako mi ide ovaj tjedan?", habits: "Koja je lakša zamjena za večeru?", support: "Unosim li dovoljno proteina?", busy: "Samo ću opisati obrok", ideas: "Što da jedem večeras?", eatmore: "Koji je jednostavan način da danas pojedeš više?" },
     macroEaten: "{value}",
     macroTarget: "od {target}{unit}",
     loadFailed: "Razgovor se nije mogao učitati.",
@@ -2351,7 +2355,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nie",
     expired: "Vypršal čas. Opíš to znova a prečítam to nanovo.",
     macroLabels: { protein: "Bielkoviny", carbs: "Sacharidy", fat: "Tuky", kcal: "Kalórie", satfat: "Nasýtené tuky" },
-    starters: { consistency: "Ako mi ide tento týždeň?", habits: "Aká je ľahšia alternatíva na večeru?", support: "Prijímam dosť bielkovín?", busy: "Len ti napíšem, čo bolo na tanieri", ideas: "Čo si mám dať dnes večer?" },
+    starters: { consistency: "Ako mi ide tento týždeň?", habits: "Aká je ľahšia alternatíva na večeru?", support: "Prijímam dosť bielkovín?", busy: "Len ti napíšem, čo bolo na tanieri", ideas: "Čo si mám dať dnes večer?", eatmore: "Aký je jednoduchý spôsob, ako dnes zjesť viac?" },
     macroEaten: "{value}",
     macroTarget: "z {target}{unit}",
     loadFailed: "Konverzáciu sa nepodarilo načítať.",
@@ -2446,7 +2450,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nei",
     expired: "Den gikk ut på tid. Beskriv den igjen, så leser jeg den på nytt.",
     macroLabels: { protein: "Protein", carbs: "Karbohydrater", fat: "Fett", kcal: "Kalorier", satfat: "Mettet fett" },
-    starters: { consistency: "Hvordan går uken min?", habits: "Hva er et lettere alternativ til middag?", support: "Får jeg nok protein?", busy: "Jeg forteller deg bare hva jeg spiste", ideas: "Hva bør jeg spise i kveld?" },
+    starters: { consistency: "Hvordan går uken min?", habits: "Hva er et lettere alternativ til middag?", support: "Får jeg nok protein?", busy: "Jeg forteller deg bare hva jeg spiste", ideas: "Hva bør jeg spise i kveld?", eatmore: "Hva er en enkel måte å spise mer på i dag?" },
     macroEaten: "{value}",
     macroTarget: "av {target}{unit}",
     loadFailed: "Kunne ikke laste samtalen.",
@@ -2541,7 +2545,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Ei",
     expired: "Tämä aikakatkaistiin. Kuvaile se uudelleen, niin luen sen uudestaan.",
     macroLabels: { protein: "Proteiini", carbs: "Hiilihydraatit", fat: "Rasva", kcal: "Kalorit", satfat: "Tyydyttynyt rasva" },
-    starters: { consistency: "Miten viikkoni sujuu?", habits: "Miten saisin päivällisestä kevyemmän?", support: "Saanko tarpeeksi proteiinia?", busy: "Kerron vain, mitä söin", ideas: "Mitä söisin tänä iltana?" },
+    starters: { consistency: "Miten viikkoni sujuu?", habits: "Miten saisin päivällisestä kevyemmän?", support: "Saanko tarpeeksi proteiinia?", busy: "Kerron vain, mitä söin", ideas: "Mitä söisin tänä iltana?", eatmore: "Mikä on helppo tapa syödä enemmän tänään?" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "Keskustelun lataus ei onnistunut.",
@@ -2636,7 +2640,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nej",
     expired: "Den udløb. Beskriv det igen, så læser jeg det på ny.",
     macroLabels: { protein: "Protein", carbs: "Kulhydrater", fat: "Fedt", kcal: "Kalorier", satfat: "Mættet fedt" },
-    starters: { consistency: "Hvordan går min uge?", habits: "Hvad er et lettere alternativ til aftensmad?", support: "Får jeg nok protein?", busy: "Jeg fortæller dig bare, hvad jeg spiste", ideas: "Hvad skal jeg spise i aften?" },
+    starters: { consistency: "Hvordan går min uge?", habits: "Hvad er et lettere alternativ til aftensmad?", support: "Får jeg nok protein?", busy: "Jeg fortæller dig bare, hvad jeg spiste", ideas: "Hvad skal jeg spise i aften?", eatmore: "Hvad er en nem måde at spise mere på i dag?" },
     macroEaten: "{value}",
     macroTarget: "af {target}{unit}",
     loadFailed: "Samtalen kunne ikke indlæses.",
@@ -2731,7 +2735,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nem",
     expired: "Ez lejárt. Írd le újra, és újra átnézem.",
     macroLabels: { protein: "Fehérje", carbs: "Szénhidrát", fat: "Zsír", kcal: "Kalória", satfat: "Telített zsír" },
-    starters: { consistency: "Hogy halad a hetem?", habits: "Mi lehet egy könnyebb alternatíva vacsorára?", support: "Elég fehérjét eszem?", busy: "Csak elmondom, mit ettem", ideas: "Mit egyek ma este?" },
+    starters: { consistency: "Hogy halad a hetem?", habits: "Mi lehet egy könnyebb alternatíva vacsorára?", support: "Elég fehérjét eszem?", busy: "Csak elmondom, mit ettem", ideas: "Mit egyek ma este?", eatmore: "Hogyan ehetnél ma egyszerűen többet?" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "Nem sikerült betölteni a beszélgetést.",
@@ -2826,7 +2830,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Όχι",
     expired: "Αυτό έληξε. Περίγραψέ το ξανά και θα το ξαναδιαβάσω.",
     macroLabels: { protein: "Πρωτεΐνη", carbs: "Υδατάνθρακες", fat: "Λιπαρά", kcal: "Θερμίδες", satfat: "Κορεσμένα λιπαρά" },
-    starters: { consistency: "Πώς πάει η εβδομάδα μου;", habits: "Τι πιο ελαφρύ να φάω για βραδινό;", support: "Παίρνω αρκετή πρωτεΐνη;", busy: "Θα σου πω απλώς τι έφαγα", ideas: "Τι να φάω απόψε;" },
+    starters: { consistency: "Πώς πάει η εβδομάδα μου;", habits: "Τι πιο ελαφρύ να φάω για βραδινό;", support: "Παίρνω αρκετή πρωτεΐνη;", busy: "Θα σου πω απλώς τι έφαγα", ideas: "Τι να φάω απόψε;", eatmore: "Ποιος είναι ένας εύκολος τρόπος να φας περισσότερο σήμερα;" },
     macroEaten: "{value}",
     macroTarget: "από {target}{unit}",
     loadFailed: "Η συνομιλία δεν φόρτωσε.",
@@ -2921,7 +2925,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nu",
     expired: "A expirat. Descrie-o din nou și o recitesc.",
     macroLabels: { protein: "Proteine", carbs: "Carbohidrați", fat: "Grăsimi", kcal: "Calorii", satfat: "Grăsimi saturate" },
-    starters: { consistency: "Cum merge săptămâna mea?", habits: "Ce variantă mai ușoară am la cină?", support: "Mănânc destule proteine?", busy: "Îți spun pur și simplu ce am mâncat", ideas: "Ce să mănânc diseară?" },
+    starters: { consistency: "Cum merge săptămâna mea?", habits: "Ce variantă mai ușoară am la cină?", support: "Mănânc destule proteine?", busy: "Îți spun pur și simplu ce am mâncat", ideas: "Ce să mănânc diseară?", eatmore: "Care e o cale simplă să mănânci mai mult azi?" },
     macroEaten: "{value}",
     macroTarget: "din {target}{unit}",
     loadFailed: "Nu am putut încărca conversația.",
@@ -3016,7 +3020,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Ne",
     expired: "Tohle vypršelo. Popiš to znovu a já to přečtu ještě jednou.",
     macroLabels: { protein: "Bílkoviny", carbs: "Sacharidy", fat: "Tuky", kcal: "Kalorie", satfat: "Nasycené tuky" },
-    starters: { consistency: "Jak mi jde tenhle týden?", habits: "Čím odlehčit večeři?", support: "Mám dost bílkovin?", busy: "Prostě ti řeknu, co bylo k jídlu", ideas: "Co si dát dnes k večeři?" },
+    starters: { consistency: "Jak mi jde tenhle týden?", habits: "Čím odlehčit večeři?", support: "Mám dost bílkovin?", busy: "Prostě ti řeknu, co bylo k jídlu", ideas: "Co si dát dnes k večeři?", eatmore: "Jaký je snadný způsob, jak dnes sníst víc?" },
     macroEaten: "{value}",
     macroTarget: "z {target}{unit}",
     loadFailed: "Konverzaci se nepodařilo načíst.",
@@ -3111,7 +3115,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "नहीं",
     expired: "उसका समय खत्म हो गया। फिर से बताएँ, हम दोबारा पढ़ लेंगे।",
     macroLabels: { protein: "प्रोटीन", carbs: "कार्ब्स", fat: "फ़ैट", kcal: "कैलोरी", satfat: "सैचुरेटेड फ़ैट" },
-    starters: { consistency: "मेरा हफ़्ता कैसा चल रहा है?", habits: "रात के खाने के लिए हल्का विकल्प क्या है?", support: "क्या मुझे पर्याप्त प्रोटीन मिल रहा है?", busy: "मैंने क्या खाया, बस वह बताना है", ideas: "आज रात मैं क्या खाऊँ?" },
+    starters: { consistency: "मेरा हफ़्ता कैसा चल रहा है?", habits: "रात के खाने के लिए हल्का विकल्प क्या है?", support: "क्या मुझे पर्याप्त प्रोटीन मिल रहा है?", busy: "मैंने क्या खाया, बस वह बताना है", ideas: "आज रात मैं क्या खाऊँ?", eatmore: "आज ज़्यादा खाने का आसान तरीका क्या है?" },
     macroEaten: "{value}",
     macroTarget: "{target}{unit} में से",
     loadFailed: "बातचीत लोड नहीं हो सकी।",
@@ -3206,7 +3210,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "ไม่",
     expired: "อันนั้นหมดเวลาแล้ว อธิบายอีกครั้งแล้วเราจะอ่านใหม่",
     macroLabels: { protein: "โปรตีน", carbs: "คาร์บ", fat: "ไขมัน", kcal: "แคลอรี", satfat: "ไขมันอิ่มตัว" },
-    starters: { consistency: "สัปดาห์นี้ของฉันเป็นยังไงบ้าง?", habits: "มื้อเย็นมีอะไรเบาๆ ให้เปลี่ยนไหม?", support: "ฉันได้โปรตีนพอไหม?", busy: "ขอเล่าเลยว่ากินอะไรไป", ideas: "คืนนี้ควรกินอะไรดี?" },
+    starters: { consistency: "สัปดาห์นี้ของฉันเป็นยังไงบ้าง?", habits: "มื้อเย็นมีอะไรเบาๆ ให้เปลี่ยนไหม?", support: "ฉันได้โปรตีนพอไหม?", busy: "ขอเล่าเลยว่ากินอะไรไป", ideas: "คืนนี้ควรกินอะไรดี?", eatmore: "มีวิธีง่าย ๆ อะไรให้กินเพิ่มได้บ้างในวันนี้?" },
     macroEaten: "{value}",
     macroTarget: "จาก {target}{unit}",
     loadFailed: "โหลดบทสนทนาไม่สำเร็จ",
@@ -3301,7 +3305,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nej",
     expired: "Tiden gick ut. Beskriv det igen så läser jag om det.",
     macroLabels: { protein: "Protein", carbs: "Kolhydrater", fat: "Fett", kcal: "Kalorier", satfat: "Mättat fett" },
-    starters: { consistency: "Hur går min vecka?", habits: "Vad är ett lättare alternativ till middag?", support: "Får jag i mig tillräckligt med protein?", busy: "Jag berättar bara vad jag åt", ideas: "Vad ska jag äta i kväll?" },
+    starters: { consistency: "Hur går min vecka?", habits: "Vad är ett lättare alternativ till middag?", support: "Får jag i mig tillräckligt med protein?", busy: "Jag berättar bara vad jag åt", ideas: "Vad ska jag äta i kväll?", eatmore: "Vad är ett enkelt sätt att äta mer i dag?" },
     macroEaten: "{value}",
     macroTarget: "av {target}{unit}",
     loadFailed: "Det gick inte att ladda konversationen.",
@@ -3396,7 +3400,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Ні",
     expired: "Час вийшов. Опиши ще раз, і я перечитаю.",
     macroLabels: { protein: "Білок", carbs: "Вуглеводи", fat: "Жири", kcal: "Калорії", satfat: "Насичені жири" },
-    starters: { consistency: "Як у мене минає тиждень?", habits: "Як зробити вечерю легшою?", support: "Чи вистачає мені білка?", busy: "Просто скажу, що було на тарілці", ideas: "Що з'їсти сьогодні ввечері?" },
+    starters: { consistency: "Як у мене минає тиждень?", habits: "Як зробити вечерю легшою?", support: "Чи вистачає мені білка?", busy: "Просто скажу, що було на тарілці", ideas: "Що з'їсти сьогодні ввечері?", eatmore: "Який простий спосіб з'їсти сьогодні більше?" },
     macroEaten: "{value}",
     macroTarget: "з {target}{unit}",
     loadFailed: "Не вдалося завантажити розмову.",
@@ -3491,7 +3495,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nee",
     expired: "Die is verlopen. Beschrijf het opnieuw en ik lees het nog een keer.",
     macroLabels: { protein: "Eiwit", carbs: "Koolhydraten", fat: "Vet", kcal: "Calorieën", satfat: "Verzadigd vet" },
-    starters: { consistency: "Hoe gaat mijn week?", habits: "Wat is een lichter alternatief voor het avondeten?", support: "Krijg ik genoeg eiwit binnen?", busy: "Ik vertel je gewoon wat ik heb gegeten", ideas: "Wat zal ik vanavond eten?" },
+    starters: { consistency: "Hoe gaat mijn week?", habits: "Wat is een lichter alternatief voor het avondeten?", support: "Krijg ik genoeg eiwit binnen?", busy: "Ik vertel je gewoon wat ik heb gegeten", ideas: "Wat zal ik vanavond eten?", eatmore: "Wat is een makkelijke manier om vandaag meer te eten?" },
     macroEaten: "{value}",
     macroTarget: "van {target} {unit}",
     loadFailed: "Het gesprek kon niet worden geladen.",
@@ -3586,7 +3590,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Nie",
     expired: "Minął czas. Opisz to jeszcze raz, a przeczytam ponownie.",
     macroLabels: { protein: "Białko", carbs: "Węglowodany", fat: "Tłuszcz", kcal: "Kalorie", satfat: "Tłuszcze nasycone" },
-    starters: { consistency: "Jak mi idzie w tym tygodniu?", habits: "Czym lżejszym zastąpić kolację?", support: "Czy jem wystarczająco białka?", busy: "Po prostu opiszę ci mój posiłek", ideas: "Co zjeść dziś wieczorem?" },
+    starters: { consistency: "Jak mi idzie w tym tygodniu?", habits: "Czym lżejszym zastąpić kolację?", support: "Czy jem wystarczająco białka?", busy: "Po prostu opiszę ci mój posiłek", ideas: "Co zjeść dziś wieczorem?", eatmore: "Jaki jest prosty sposób, żeby dziś zjeść więcej?" },
     macroEaten: "{value}",
     macroTarget: "z {target}{unit}",
     loadFailed: "Nie udało się wczytać rozmowy.",
@@ -3681,7 +3685,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Hayır",
     expired: "Bunun süresi doldu. Tekrar anlat, yeniden okuyayım.",
     macroLabels: { protein: "Protein", carbs: "Karbonhidrat", fat: "Yağ", kcal: "Kalori", satfat: "Doymuş yağ" },
-    starters: { consistency: "Haftam nasıl gidiyor?", habits: "Akşam yemeği için daha hafif bir alternatif ne?", support: "Yeterince protein alıyor muyum?", busy: "Ne yediğimi anlatayım", ideas: "Bu akşam ne yesem?" },
+    starters: { consistency: "Haftam nasıl gidiyor?", habits: "Akşam yemeği için daha hafif bir alternatif ne?", support: "Yeterince protein alıyor muyum?", busy: "Ne yediğimi anlatayım", ideas: "Bu akşam ne yesem?", eatmore: "Bugün daha fazla yemenin kolay bir yolu ne?" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "Sohbet yüklenemedi.",
@@ -3776,7 +3780,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "不要",
     expired: "那則已逾時。再描述一次，我會重新讀取。",
     macroLabels: { protein: "蛋白質", carbs: "碳水", fat: "脂肪", kcal: "熱量", satfat: "飽和脂肪" },
-    starters: { consistency: "我這週過得怎麼樣？", habits: "晚餐有什麼比較清淡的替代選擇？", support: "我的蛋白質吃夠了嗎？", busy: "我直接告訴你我吃了什麼", ideas: "今晚該吃什麼？" },
+    starters: { consistency: "我這週過得怎麼樣？", habits: "晚餐有什麼比較清淡的替代選擇？", support: "我的蛋白質吃夠了嗎？", busy: "我直接告訴你我吃了什麼", ideas: "今晚該吃什麼？", eatmore: "今天想多吃一點，有什麼簡單的方法？" },
     macroEaten: "{value}",
     macroTarget: "／{target}{unit}",
     loadFailed: "無法載入對話。",
@@ -3871,7 +3875,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "不对",
     expired: "这条超时了。再描述一次，我重新读一遍。",
     macroLabels: { protein: "蛋白质", carbs: "碳水", fat: "脂肪", kcal: "热量", satfat: "饱和脂肪" },
-    starters: { consistency: "我这周进展如何？", habits: "晚餐有什么更清淡的替代？", support: "我的蛋白质摄入够吗？", busy: "我直接告诉你我吃了什么", ideas: "我今晚该吃什么？" },
+    starters: { consistency: "我这周进展如何？", habits: "晚餐有什么更清淡的替代？", support: "我的蛋白质摄入够吗？", busy: "我直接告诉你我吃了什么", ideas: "我今晚该吃什么？", eatmore: "今天想多吃点，有什么简单的方法？" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "没能加载对话。",
@@ -3966,7 +3970,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "아니요",
     expired: "시간이 초과됐어요. 다시 설명해 주시면 다시 읽어 볼게요.",
     macroLabels: { protein: "단백질", carbs: "탄수화물", fat: "지방", kcal: "칼로리", satfat: "포화 지방" },
-    starters: { consistency: "이번 주는 어떻게 가고 있나요?", habits: "저녁을 더 가볍게 바꾸려면 뭐가 좋을까요?", support: "단백질을 충분히 먹고 있나요?", busy: "먹은 걸 그냥 말로 할게요", ideas: "오늘 저녁엔 뭘 먹을까요?" },
+    starters: { consistency: "이번 주는 어떻게 가고 있나요?", habits: "저녁을 더 가볍게 바꾸려면 뭐가 좋을까요?", support: "단백질을 충분히 먹고 있나요?", busy: "먹은 걸 그냥 말로 할게요", ideas: "오늘 저녁엔 뭘 먹을까요?", eatmore: "오늘 더 많이 먹을 수 있는 쉬운 방법이 뭐예요?" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "대화를 불러오지 못했어요.",
@@ -4061,7 +4065,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "いいえ",
     expired: "タイムアウトしました。もう一度説明してくれれば、読み直します。",
     macroLabels: { protein: "タンパク質", carbs: "炭水化物", fat: "脂質", kcal: "カロリー", satfat: "飽和脂肪酸" },
-    starters: { consistency: "今週の調子はどうですか？", habits: "夕食を軽くするなら何に置き換えればいいですか？", support: "タンパク質は足りていますか？", busy: "食べたものを伝えるだけにします", ideas: "今夜は何を食べたらいいですか？" },
+    starters: { consistency: "今週の調子はどうですか？", habits: "夕食を軽くするなら何に置き換えればいいですか？", support: "タンパク質は足りていますか？", busy: "食べたものを伝えるだけにします", ideas: "今夜は何を食べたらいいですか？", eatmore: "今日、手軽にもっと食べられる方法はありますか？" },
     macroEaten: "{value}",
     macroTarget: "/ {target}{unit}",
     loadFailed: "会話を読み込めませんでした。",
@@ -4156,7 +4160,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Não",
     expired: "Essa expirou. Descreva de novo que eu leio outra vez.",
     macroLabels: { protein: "Proteína", carbs: "Carboidratos", fat: "Gordura", kcal: "Calorias", satfat: "Gordura saturada" },
-    starters: { consistency: "Como está indo minha semana?", habits: "Qual troca mais leve para o jantar?", support: "Estou comendo proteína suficiente?", busy: "Vou só te contar o que comi", ideas: "O que eu como hoje à noite?" },
+    starters: { consistency: "Como está indo minha semana?", habits: "Qual troca mais leve para o jantar?", support: "Estou comendo proteína suficiente?", busy: "Vou só te contar o que comi", ideas: "O que eu como hoje à noite?", eatmore: "Qual é um jeito fácil de comer mais hoje?" },
     macroEaten: "{value}",
     macroTarget: "de {target}{unit}",
     loadFailed: "Não deu para carregar a conversa.",
@@ -4249,9 +4253,10 @@ export const chatScreenCopyFor = (lang: Lang): ChatScreenCopy => t(lang)(CHAT_SC
 // carries its struggle's own, and a suggestion row takes the macro's when the words name one,
 // else `ideas`. The mapping is shared so W7 and M7 draw the same icon for the same line.
 
-/** Each struggle's starter row's icon, the boards' own pairing. */
-export const STARTER_ICONS: Record<Struggle, IconName> = {
+/** Each starter's row icon, the boards' own pairing — `eatmore` is the gainer's, so `gain`. */
+export const STARTER_ICONS: Record<StarterKey, IconName> = {
   consistency: "consistency", habits: "habits", support: "protein", busy: "busy", ideas: "ideas",
+  eatmore: "gain",
 };
 
 const words = (text: string): string[] =>
@@ -4270,17 +4275,25 @@ const hasPhrase = (text: string, phrase: string): boolean => {
 };
 
 /**
- * The starter rows in the struggles' own order — the picked struggles first, in `STRUGGLES` list
- * order, the unpicked filling to three — `shared/chat.ts`'s rule restated against this table,
- * because `starterRowsFor` there reads the lingui THREAD_COPY and this bundle holds no catalog.
+ * The starter rows for a profile — the starters its barrier and situation picks earn first, in
+ * `BARRIERS`-then-`SITUATIONS` list order, the unearned filling to three — `shared/chat.ts`'s
+ * `starterRowsFor` rule restated against this table, because that one reads the lingui
+ * THREAD_COPY and this bundle holds no catalog. The mapping (`STARTER_FOR_PICK`) is `types.ts`'s,
+ * so the two restatements can only ever differ in the words — which the test compares.
  */
 export function starterRows(
-  picked: readonly Struggle[] | null | undefined,
+  p: Pick<Profile, "barriers" | "situations" | "goal">,
   lang: Lang,
-): { struggle: Struggle; text: string }[] {
+): { key: StarterKey; text: string }[] {
   const starters = chatScreenCopyFor(lang).starters;
-  return [...STRUGGLES.filter((s) => picked?.includes(s)), ...STRUGGLES.filter((s) => !picked?.includes(s))]
-    .slice(0, 3).map((s) => ({ struggle: s, text: starters[s] }));
+  const picked = [...BARRIERS, ...SITUATIONS].filter(
+    (s) => (BARRIERS as readonly string[]).includes(s) ? p.barriers?.includes(s as Barrier) : p.situations?.includes(s as Situation),
+  );
+  const chosen = [...new Set(picked.map((s) => STARTER_FOR_PICK[s]))];
+  // `eatmore` fills only on the branch that can have picked it: a loser offered "an easy way to
+  // eat more today" is a starter written for nobody.
+  const rest = STARTER_KEYS.filter((k) => !chosen.includes(k) && (k !== "eatmore" || p.goal === "gain"));
+  return [...chosen, ...rest].slice(0, 3).map((key) => ({ key, text: starters[key] }));
 }
 
 /**
@@ -4290,7 +4303,7 @@ export function starterRows(
  */
 export function coachRowIcon(text: string, lang: Lang): IconName {
   const starters = chatScreenCopyFor(lang).starters;
-  for (const s of Object.keys(STARTER_ICONS) as Struggle[]) {
+  for (const s of Object.keys(STARTER_ICONS) as StarterKey[]) {
     if (hasPhrase(text, starters[s])) return STARTER_ICONS[s];
   }
   const labels = chatScreenCopyFor(lang).macroLabels;

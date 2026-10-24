@@ -447,9 +447,7 @@ describe("every sentence this product ships", () => {
     for (const lang of LANGS) {
       const copy = PLAN_COPY[lang];
       if (!copy) continue;
-      const { people, ...words } = copy;
-      const forms = Object.fromEntries(Object.entries(people).map(([k, v]) => [`people.${k}`, v!]));
-      expect(lintCopy({ ...words, ...forms }).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
+      expect(lintCopy({ ...copy }).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
     }
   });
 
@@ -499,14 +497,15 @@ describe("every sentence this product ships", () => {
     }
   });
 
-  it("the W2 surface's own words pass the gate — the how card, the units word, the pace tail", () => {
+  it("the W2 surface's own words pass the gate — the plan beats, the units word, the pace tail", () => {
     // The table's gate-shaped exceptions are the fields that quote the user (`options.lose`) and
     // the S6 plan headline; the copy the redesign ADDS is ordinary prose and must not grow one.
     for (const lang of LANGS) {
       const copy = chatCopyFor(lang);
       expect(lintCopy({
-        "how.meal": copy.how.meal,
-        "how.photoAlt": copy.how.photoAlt,
+        "baseline.what": copy.baseline.what,
+        "prelim.title": copy.prelim.title,
+        "prelim.keepTitle": copy.prelim.keepTitle,
         "units.years": copy.units.years,
         "pace.rateSuffix": copy.pace.rateSuffix,
         "pace.echo": copy.pace.echo,

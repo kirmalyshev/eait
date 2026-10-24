@@ -18,9 +18,9 @@ import type { MealReminders, PushKind, SavedMeal, SendKind, SendLogState } from 
 import type {
   DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealFocus, MealItem, MealLabel, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
-  OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
+  Barrier, CountedBefore, OnboardingContentSet, Profile, Provider, PushTemplateRow, Situation, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, isMealReminders, PRODUCT_SOURCES, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
+import { BARRIERS, COUNTED_BEFORE, HEALTH_FIELDS, isMealReminders, PRODUCT_SOURCES, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, SITUATIONS, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -247,6 +247,13 @@ alter table users add column if not exists staff boolean not null default false;
 -- is "asked, nothing picked". A not-null-with-default would erase that distinction.
 alter table users add column if not exists units text;
 alter table users add column if not exists struggles text[];
+
+-- Onboarding polish (eait#719): the counted-before single pick and the barriers/situations chip
+-- lists. All three NULLABLE on the struggles rule — null is "never asked", '{}' is "asked,
+-- nothing picked".
+alter table users add column if not exists counted_before text;
+alter table users add column if not exists barriers text[];
+alter table users add column if not exists situations text[];
 
 -- The streak length the user aims for (7, 14 or 30 days). NULL = never asked, which is what resume
 -- checks; Home's streak chip reads it. The vocabulary is checked on the write (engine/profile.ts)
@@ -1488,6 +1495,15 @@ function toProfile(r: UserRow): Profile {
     struggles: r.struggles === null || r.struggles === undefined
       ? null
       : ((r.struggles as string[]).filter((s) => (STRUGGLES as readonly string[]).includes(s)) as Struggle[]),
+    counted_before: (COUNTED_BEFORE as readonly string[]).includes(String(r.counted_before))
+      ? (String(r.counted_before) as CountedBefore)
+      : null,
+    barriers: r.barriers === null || r.barriers === undefined
+      ? null
+      : ((r.barriers as string[]).filter((s) => (BARRIERS as readonly string[]).includes(s)) as Barrier[]),
+    situations: r.situations === null || r.situations === undefined
+      ? null
+      : ((r.situations as string[]).filter((s) => (SITUATIONS as readonly string[]).includes(s)) as Situation[]),
     streak_goal_days: (STREAK_GOALS as readonly number[]).includes(Number(r.streak_goal_days))
       ? (Number(r.streak_goal_days) as StreakGoal)
       : null,
@@ -1575,7 +1591,7 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "units", "struggles", "streak_goal_days", "fiber_goal_g", "sugar_goal_g", "sodium_goal_mg", "milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover", "meal_focus_offer", "country", "restrictions", "medical_limitations",
+  "activity", "pace", "units", "struggles", "counted_before", "barriers", "situations", "streak_goal_days", "fiber_goal_g", "sugar_goal_g", "sodium_goal_mg", "milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover", "meal_focus_offer", "country", "restrictions", "medical_limitations",
   "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 
@@ -2874,9 +2890,15 @@ export async function postgresStore(
       if (patch.struggles !== undefined) {
         await sql`update users set struggles = ${patch.struggles === null ? null : toPgTextArray(patch.struggles)} where id = ${userId}`;
       }
+      if (patch.barriers !== undefined) {
+        await sql`update users set barriers = ${patch.barriers === null ? null : toPgTextArray(patch.barriers)} where id = ${userId}`;
+      }
+      if (patch.situations !== undefined) {
+        await sql`update users set situations = ${patch.situations === null ? null : toPgTextArray(patch.situations)} where id = ${userId}`;
+      }
 
       const entries = PROFILE_COLUMNS
-        .filter((c) => c !== "restrictions" && c !== "struggles" && (patch as Record<string, unknown>)[c] !== undefined)
+        .filter((c) => c !== "restrictions" && c !== "struggles" && c !== "barriers" && c !== "situations" && (patch as Record<string, unknown>)[c] !== undefined)
         .map((c) => [c, (patch as Record<string, unknown>)[c]] as const);
       if (entries.length > 0) {
         // Column names come from the frozen list above, never from the patch's own keys, so no

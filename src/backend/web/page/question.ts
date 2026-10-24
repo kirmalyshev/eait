@@ -73,10 +73,9 @@ ${opts.foot ?? ctaSubmit(copy.continueLabel)}
   return shell("eait", body, v.lang, "ob");
 }
 
-// ── The option screens (01 goal · 04 sex · 08 activity · 11 struggles · 14 diet · 14b medical) ──
+// ── The option screens (01 goal · 04 sex · 08 activity · 11 counted/barrier/situation · 14 diet · 14b medical) ──
 
 const TILE_ICON: Record<string, Record<string, string>> = {
-  struggles: { consistency: "consistency", habits: "habits", support: "support", busy: "busy", ideas: "ideas" },
   diet: {
     balanced: "balanced", wholefood: "wholefood", mediterranean: "mediterranean",
     flexitarian: "flexitarian", pescatarian: "pescatarian", vegetarian: "vegetarian", vegan: "vegan",
@@ -93,7 +92,7 @@ function optionControl(v: QuestionView): string {
   const opts = screenOptions(v.content, place as OnboardingScreenId);
   // `screenOptionValues` is the list the prompt does not pin; `optionLabel` names what the
   // content does not label. The content's order is the order.
-  const values = [...(v.prompt.options ?? screenOptionValues(place as OnboardingScreenId, v.lang))];
+  const values = [...(v.prompt.options ?? screenOptionValues(place as OnboardingScreenId, v.lang, v.profile.goal))];
   const chosen = new Set(v.current);
   const multi = v.prompt.kind === "chips";
   // Nothing is preselected on the goal — the first answer is the whole plan's direction, and a
@@ -438,7 +437,9 @@ export function question(v: QuestionView): string {
     case "sex":
     case "activity":
     case "diet":
-    case "struggles":
+    case "counted":
+    case "barrier":
+    case "situation":
     case "streak":
     case "medical":
       return page(v, { control: optionControl(v) });

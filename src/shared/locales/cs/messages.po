@@ -594,6 +594,11 @@ msgstr "Čím odlehčit večeři?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Jaký je snadný způsob, jak dnes sníst víc?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Tvůj první den začal. Ve 20:30 dostaneš jeden řádek — dnešek v porovnání s plánem a jednu konkrétní věc na zítřek. Předtím nic."
 

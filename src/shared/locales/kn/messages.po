@@ -594,6 +594,11 @@ msgstr "ರಾತ್ರಿಯ ಊಟಕ್ಕೆ ಹಗುರವಾದ ಪರ್
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "ಇಂದು ಹೆಚ್ಚು ತಿನ್ನಲು ಸುಲಭವಾದ ಮಾರ್ಗ ಯಾವುದು?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "ನಿಮ್ಮ ಮೊದಲ ದಿನ ಶುರುವಾಗಿದೆ. 20:30 ಕ್ಕೆ ನಿಮಗೆ ಒಂದು ಸಂದೇಶ ಬರುತ್ತದೆ — ಇಂದು, ಪ್ಲಾನ್‌ಗೆ ಹೋಲಿಸಿದರೆ, ಮತ್ತು ನಾಳೆಗಾಗಿ ಒಂದು ನಿರ್ದಿಷ್ಟ ಸಲಹೆ. ಅದಕ್ಕೂ ಮೊದಲು ಏನೂ ಇಲ್ಲ."
 

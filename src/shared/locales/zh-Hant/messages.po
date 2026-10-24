@@ -594,6 +594,11 @@ msgstr "晚餐有什麼比較清淡的替代選擇？"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "今天想多吃一點，有什麼簡單的方法？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "你的第一天開始了。20:30 你會收到一則總結：今天與計畫的對照，以及明天可以做的一件具體的事。在那之前不會打擾你。"
 

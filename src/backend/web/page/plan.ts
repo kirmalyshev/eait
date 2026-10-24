@@ -1,11 +1,11 @@
 import {
-  activityWords, countText, fill, kcalNumbers, LANG_LABEL, maintainRange, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
+  activityWords, fill, kcalNumbers, LANG_LABEL, maintainRange, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
   planJourney, planWaterfall, projectionMonth, spellUnit, weightDisplay,
   wholeNumbers, youCopyFor,
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent, type Profile,
   type TargetBasis,
 } from "@eait/shared";
-import { dash, IMG_URL_DIR, wtop } from "./board.ts";
+import { dash, wtop } from "./board.ts";
 import { pageCopyFor } from "../copy.ts";
 import { escape, shell } from "./shell.ts";
 
@@ -28,8 +28,6 @@ export interface PlanView {
    * control would strand it.
    */
   hasWebApp: boolean;
-  /** `peopleBuilding` — accounts onboarded in the last day; the loader's line is drawn only above 0. */
-  peopleBuilding: number | null;
   lang: Lang;
 }
 
@@ -66,7 +64,7 @@ ${everyDayCard(v, COPY)}</div>` : ""}
 <div class="pcol">
 ${left ? "" : everyDayCard(v, COPY)}
 ${infoCard(v, COPY, goal)}
-${reachCard(v, COPY)}
+${firstCard(v, COPY)}
 <details class="howc"><summary class="t13 m">ⓘ ${escape(COPY.howCalc)}</summary>
 ${bars ? waterfallCard(v, bars) : ""}
 <p class="t12 m pmeth">${escape(COPY.method)}<br>${escape(COPY.methodSource)}</p>
@@ -97,8 +95,7 @@ function goalWords(v: PlanView, COPY: ReturnType<typeof planCopyFor>): { kg: str
 /**
  * The loader (17): the ring fills 0 → 100 % over `LOADER_S` while the computed numbers roll under
  * it, then it lifts off the plan. Its reader is the plan itself — every figure is the engine's,
- * the same ones the cards below draw, and the goal reads "Your goal · −8kg by March 2027". Under
- * it, the real people counter — the store's count, never a constant — when there is one to show.
+ * the same ones the cards below draw, and the goal reads "Your goal · −8kg by March 2027".
  * Under Reduce Motion it is not drawn at all: the plan is the resting state.
  */
 function loader(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: string; month: string } | null): string {
@@ -118,7 +115,6 @@ function loader(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: s
 <div class="pct"><span class="count" style="--to:100"></span><small>%</small></div></div>
 <h2>${escape(v.content.building.lines[0] ?? COPY.building)}</h2>
 <div class="cap"><div style="animation-timing-function:steps(${rows.length - 1},end)">${caps}</div></div>
-${v.peopleBuilding !== null && v.peopleBuilding > 0 ? `<p class="ppl">${escape(countText(v.lang)(COPY.people, v.peopleBuilding))}</p>` : ""}
 </div>`;
 }
 
@@ -153,14 +149,10 @@ ${row("🧈", COPY.satFatAsked, satfat !== undefined && satfat !== null ? fill(C
 </div></div>`;
 }
 
-/** How to reach your goal (18b): four habits, the kcal one carrying the day's real target. */
-function reachCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string {
-  const step = (tile: string, text: string) => `<div class="sr"><span class="ti">${tile}</span>${escape(text)}</div>`;
-  return `<div class="card rise" style="--d:.8s"><p class="ct">${escape(COPY.reachTitle)}</p><div class="st">
-${step(`<img src="${IMG_URL_DIR}/salmon-sq.webp" alt="">`, COPY.stepPhoto)}
-${step(`<i class="ico i-kcal"></i>`, fill(COPY.stepKcal, { kcal: kcalNumbers(v.lang)(v.targets.kcal) }))}
-${step(`<span class="tri"><i class="ico i-protein"></i><i class="ico i-carbs"></i><i class="ico i-fat"></i></span>`, COPY.stepBalance)}
-${step(`<svg viewBox="0 0 44 44" width="30" height="30" aria-hidden="true"><path d="M6 14 C18 14 24 30 38 31" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>`, COPY.stepWeigh)}
+/** The first step (18b): the one habit the plan opens on, carrying the day's real target. */
+function firstCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string {
+  return `<div class="card rise" style="--d:.8s"><p class="ct">${escape(COPY.firstTitle)}</p><div class="st">
+<div class="sr"><span class="ti"><i class="ico i-kcal"></i></span>${escape(fill(COPY.firstStep, { kcal: kcalNumbers(v.lang)(v.targets.kcal) }))}</div>
 </div></div>`;
 }
 

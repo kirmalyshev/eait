@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { catalogArgs } from "./i18n.ts";
-import { LANGS, STRUGGLES, type Lang } from "./types.ts";
+import { BARRIERS, LANGS, type Lang } from "./types.ts";
 import { threadCopyFor } from "./chat-copy.ts";
 import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, capVerdictLines, cleanSuggestions, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, scriptedLine, scriptedParams } from "./chat.ts";
 
@@ -122,8 +122,8 @@ describe("the first verdict", () => {
 
 describe("coach", () => {
   it("offers a few starters, each short enough to be a chip and worded as the user would send it", () => {
-    expect(startersFor(null, "en").length).toBeGreaterThanOrEqual(3);
-    for (const s of startersFor(null, "en")) {
+    expect(startersFor({ barriers: null, situations: null, goal: null }, "en").length).toBeGreaterThanOrEqual(3);
+    for (const s of startersFor({ barriers: null, situations: null, goal: null }, "en")) {
       expect(s.length).toBeLessThanOrEqual(MAX_SUGGESTION);
       expect(s.trim()).toBe(s);
     }
@@ -133,19 +133,21 @@ describe("coach", () => {
     for (const lang of LANGS) expect(threadCopyFor(lang).coach.name, lang).toBe("Spud");
   });
 
-  it("reads the struggles: the picked ones' starters first, the rest fill to three", () => {
+  it("reads the picks: the picked ones' starters first, the rest fill to three", () => {
     // No pick (never asked, or asked and nothing chosen): the list order's first three.
-    expect(startersFor(null, "en")).toEqual([
+    const none = { barriers: null, situations: null, goal: "lose" as const };
+    expect(startersFor(none, "en")).toEqual([
       "How's my week going?", "What's a lighter swap for dinner?", "Am I getting enough protein?",
     ]);
-    expect(startersFor([], "en")).toEqual(startersFor(null, "en"));
-    // Picked ones lead, in STRUGGLES list order rather than tap order — busy before ideas.
-    expect(startersFor(["ideas", "busy"], "en")).toEqual([
+    expect(startersFor({ barriers: [], situations: [], goal: "lose" }, "en")).toEqual(startersFor(none, "en"));
+    // Picked ones lead, in vocabulary order rather than tap order — `too_long` (busy) before
+    // `no_idea` (ideas), however they were tapped.
+    expect(startersFor({ barriers: ["no_idea", "too_long"], situations: [], goal: "lose" }, "en")).toEqual([
       "I'll just tell you what I ate", "What should I eat tonight?", "How's my week going?",
     ]);
-    // Every struggle has a starter, and more than three picks still answer three.
-    expect(startersFor([...STRUGGLES].reverse(), "en")).toHaveLength(3);
-    expect(startersFor(["support"], "en")[0]).toBe("Am I getting enough protein?");
+    // Every pick earns a starter, and more than three still answer three.
+    expect(startersFor({ barriers: [...BARRIERS].reverse(), situations: [], goal: "lose" }, "en")).toHaveLength(3);
+    expect(startersFor({ barriers: ["nobody"], situations: [], goal: "lose" }, "en")[0]).toBe("Am I getting enough protein?");
   });
 
   it("keeps only the suggestions a chip can carry: strings, short, distinct, at most three", () => {

@@ -600,6 +600,11 @@ msgstr "Đổi món gì nhẹ hơn cho bữa tối?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Cách dễ dàng để ăn nhiều hơn hôm nay là gì?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Ngày đầu tiên của bạn đã bắt đầu. 20:30 bạn nhận một dòng — hôm nay so với kế hoạch, và một việc cụ thể cho ngày mai. Trước đó thì không gì cả."
 

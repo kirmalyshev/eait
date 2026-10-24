@@ -23,8 +23,8 @@ describe("the thread in eight languages", () => {
 
   it("offers three starters, in every language", () => {
     for (const lang of LANGS) {
-      expect(startersFor(null, lang).length, lang).toBe(3);
-      for (const s of startersFor(null, lang)) expect(s.length, lang).toBeGreaterThan(0);
+      expect(startersFor({ barriers: null, situations: null, goal: null }, lang).length, lang).toBe(3);
+      for (const s of startersFor({ barriers: null, situations: null, goal: null }, lang)) expect(s.length, lang).toBeGreaterThan(0);
     }
   });
 
@@ -76,7 +76,7 @@ describe("the thread in eight languages", () => {
       (l: (typeof LANGS)[number]) => threadCopyFor(l).firstVerdict.headline.caloriesHigh,
       (l: (typeof LANGS)[number]) => threadCopyFor(l).firstVerdict.firstIn({ kcal: "612" }),
       (l: (typeof LANGS)[number]) => streamCopyFor(l).reading,
-      (l: (typeof LANGS)[number]) => startersFor(null, l)[0]!,
+      (l: (typeof LANGS)[number]) => startersFor({ barriers: null, situations: null, goal: null }, l)[0]!,
     ]) {
       expect(new Set(LANGS.map(sample)).size).toBe(LANGS.length);
     }

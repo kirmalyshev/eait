@@ -52,8 +52,8 @@ export interface ThreadCopy {
    * fills from this, never a literal.
    */
   coach: { name: string };
-  /** One starter per struggle; `startersFor` in `chat.ts` picks and orders them for a profile. */
-  coachStarters: Record<Struggle, string>;
+  /** One starter per struggle, plus `eatmore` for a gainer; `startersFor` in `chat.ts` picks and orders them for a profile. */
+  coachStarters: Record<Struggle | "eatmore", string>;
   /**
    * WHOLE SENTENCES, never fragments joined by code.
    *
@@ -114,6 +114,7 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     support: i18n._("thread.coachStarters.support", undefined, { message: "Am I getting enough protein?" }),
     busy: i18n._("thread.coachStarters.busy", undefined, { message: "I'll just tell you what I ate" }),
     ideas: i18n._("thread.coachStarters.ideas", undefined, { message: "What should I eat tonight?" }),
+    eatmore: i18n._("thread.coachStarters.eatmore", undefined, { message: "What's an easy way to eat more today?" }),
   },
   firstVerdict: {
     typed: (v: { kcal: string }) => i18n._("thread.firstVerdict.typed", v, { message: "Typed, not photographed — so the portions are my guess. Take {kcal} as rough; if you know the grams, say so and I'll fix it." }),

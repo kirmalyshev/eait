@@ -594,6 +594,11 @@ msgstr "రాత్రి భోజనానికి తేలికైన ప
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "ఈరోజు ఎక్కువ తినడానికి సులభమైన మార్గం ఏమిటి?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "మీ మొదటి రోజు మొదలైంది. 20:30కి మీకు ఒక సందేశం వస్తుంది — ప్లాన్‌తో పోలిస్తే ఈరోజు, రేపటి కోసం ఒక స్పష్టమైన సూచన. అంతకు ముందు ఏమీ రాదు."
 

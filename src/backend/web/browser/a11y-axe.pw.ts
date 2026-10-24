@@ -15,7 +15,7 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
     await page.setViewportSize({ width, height });
     await page.goto("/start");
     // The welcome page, drawn — an axe run against a page that never rendered finds nothing.
-    await expect(page.getByRole("link", { name: "Build my plan" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Start", exact: true })).toBeVisible();
     expect(await axeFindings(page)).toEqual([]);
   });
 

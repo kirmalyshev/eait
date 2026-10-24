@@ -227,15 +227,27 @@ async function answerAll(
   session: string | undefined, answers: Record<string, string | string[]>,
 ): Promise<string> {
   let cookie = session;
-  for (let i = 0; i < 20; i++) {
-    const page = await get("/start/q", cookie);
+  // Follow the redirect like a browser: a POST can name a `?show=` card, and the `?asked=` marks
+  // it appends are the walk's memory of the two views a mid-run GET cannot see (diet, medical) —
+  // losing either stalls the walk on the same question for ever.
+  let next = "/start/q";
+  let leftTheWalk = false;
+  for (let i = 0; i < 40 && !leftTheWalk; i++) {
+    const page = await get(next, cookie);
     if (page.status === 303) {
       if (cookie === undefined) throw new Error("the questions never made an account");
       return cookie;
     }
     const html = await page.text();
     const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1];
-    if (!id) throw new Error(`no prompt on the page: ${html.slice(0, 400)}`);
+    if (!id) {
+      // An interstitial (`?show=baseline` / `?show=prelim`): its Continue is a link, not a form.
+      const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
+        ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
+      if (href === undefined) throw new Error(`no prompt on the page: ${html.slice(0, 400)}`);
+      next = href.replace(/&amp;/g, "&");
+      continue;
+    }
     const answer = answers[id];
     if (answer === undefined) throw new Error(`no answer supplied for ${id}`);
     // The POST goes to the form's own action: its `?asked=` params are how the walk steps past the
@@ -246,8 +258,13 @@ async function answerAll(
     expect(res.status).toBe(303);
     const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
     if (set) cookie = set.split(";")[0]!;
+    next = res.headers.get("location") ?? "/start/q";
+    // The completing post leaves the walk — `/start/plan` — and what follows is not a question.
+    leftTheWalk = !next.startsWith("/start/q");
   }
-  throw new Error("onboarding did not finish");
+  if (!leftTheWalk) throw new Error("onboarding did not finish");
+  if (cookie === undefined) throw new Error("the questions never made an account");
+  return cookie;
 }
 
 /**
@@ -277,7 +294,9 @@ const ANSWERS: Record<string, string | string[]> = {
   activity: "few",
   target_weight_kg: "70",
   pace: "steady",
-  struggles: ["habits"],
+  counted_before: "stopped",
+  barriers: ["too_long"],
+  situations: ["evenings"],
   streak_goal_days: "14",
   diet: "mediterranean",
   medical: [],
@@ -318,8 +337,8 @@ describe("the front door", () => {
     const html = await res.text();
     expect(html).toContain('href="/start/q"');
     expect(html).toContain('href="/start/signup"');
-    expect(html).toContain(signupCopyFor("en").startCta);
-    expect(html).toContain(signupCopyFor("en").haveAccountCta);
+    expect(html).toContain(DEFAULT_ONBOARDING_CONTENT.welcome.cta);
+    expect(html).toContain(DEFAULT_ONBOARDING_CONTENT.welcome.signin);
     expect(html).not.toContain("/start/auth/");
     expect(html).toContain("Spud");
   });
@@ -727,21 +746,37 @@ describe("the questions", () => {
   it("walks the same order the app walks, and finishes", async () => {
     const session = await signIn();
     const asked: string[] = [];
-    for (let i = 0; i < 20; i++) {
-      const page = await get("/start/q", session);
+    let next = "/start/q";
+    for (let i = 0; i < 40; i++) {
+      const page = await get(next, session);
       if (page.status === 303) break;
       const html = await page.text();
-      const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+      const match = html.match(/name="prompt" value="([a-z_]+)"/);
+      if (match === null) {
+        // An interstitial (`?show=baseline` / `?show=prelim`): its Continue is a link, not a form.
+        const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
+          ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
+        if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
+        next = href.replace(/&amp;/g, "&");
+        continue;
+      }
+      const id = match[1]!;
       asked.push(id);
       const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
-      await post(action, { prompt: id, answer: ANSWERS[id]! }, session);
+      const res = await post(action, { prompt: id, answer: ANSWERS[id]! }, session);
+      // Follow the redirect like a browser — its `?asked=` marks are the walk's memory of diet
+      // and medical, whose answers are not readable off the profile mid-run.
+      next = res.headers.get("location") ?? "/start/q";
+      // The completing post leaves the walk — `/start/plan` — and what follows is not a question.
+      if (!next.startsWith("/start/q")) break;
     }
     // Country is NOT in the walk any more (S8): it waits for the sign-up and gets a screen of its
     // own after it, at `/start/country` — the tests for that screen are with it.
     expect(disabledScreens(DEFAULT_ONBOARDING_CONTENT)).toEqual([]);
     expect(asked).toEqual([
       "goal", "sex", "birth_year", "height_cm", "weight_kg",
-      "activity", "target_weight_kg", "pace", "struggles", "streak_goal_days", "diet", "medical",
+      "activity", "target_weight_kg", "pace", "counted_before", "barriers", "situations",
+      "diet", "medical", "streak_goal_days",
     ]);
   });
 
@@ -777,29 +812,33 @@ describe("the plan reveal", () => {
   it("follows the last answer — the completing post lands on the plan", async () => {
     // Drive the walk by hand so the LAST post's redirect is the one asserted.
     let cookie = await signIn();
-    for (let i = 0; i < 20; i++) {
-      const page = await get("/start/q", cookie);
+    let next = "/start/q";
+    for (let i = 0; i < 40; i++) {
+      const page = await get(next, cookie);
       if (page.status === 303) break;
       const html = await page.text();
-      const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1]!;
+      const match = html.match(/name="prompt" value="([a-z_]+)"/);
+      if (match === null) {
+        // An interstitial (`?show=baseline` / `?show=prelim`): its Continue is a link, not a form.
+        const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
+          ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
+        if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
+        next = href.replace(/&amp;/g, "&");
+        continue;
+      }
+      const id = match[1]!;
       const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
       const res = await post(action, { prompt: id, answer: ANSWERS[id]! }, cookie);
       expect(res.status).toBe(303);
       const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
       if (set) cookie = set.split(";")[0]!;
-      if (id === "medical") {
-        // The patch that wrote `complete_onboarding` answers with the two cards, then the plan.
-        const loc = res.headers.get("location")!;
-        expect(loc).toContain("show=ontrack");
-        const ontrack = await get(loc, cookie);
-        expect(ontrack.status).toBe(200);
-        const next = (await ontrack.text()).match(/class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&")!;
-        expect(next).toContain("show=how");
-        const how = await get(next, cookie);
-        expect(how.status).toBe(200);
-        const last = (await how.text()).match(/class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&")!;
-        expect((await get(last, cookie)).headers.get("location")).toBe("/start/plan");
+      if (id === "streak_goal_days") {
+        // The patch that wrote `complete_onboarding` answers with the plan itself.
+        expect(res.headers.get("location")).toBe("/start/plan");
       }
+      next = res.headers.get("location") ?? "/start/q";
+      // The completing post leaves the walk — `/start/plan` — and what follows is not a question.
+      if (!next.startsWith("/start/q")) break;
     }
     // …and a resume goes to the plan too.
     expect((await get("/start/q", cookie)).headers.get("location")).toBe("/start/plan");
@@ -1158,7 +1197,7 @@ const walkTo = async (session: string, stopAt: string): Promise<string> => {
     const html = await page.text();
     const m = html.match(/name="prompt" value="([a-z_]+)"/);
     if (m === null) {
-      // An interstitial (`?show=how` / `?show=ontrack`): its Continue is a link, not a form.
+      // An interstitial (`?show=baseline` / `?show=prelim`): its Continue is a link, not a form.
       const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
         ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
       if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
@@ -1176,17 +1215,17 @@ const walkTo = async (session: string, stopAt: string): Promise<string> => {
 };
 
 describe("the v2 questions that write the new fields", () => {
-  it("stores the struggle picks in list order, whatever order they were tapped", async () => {
+  it("stores the barrier picks in list order, whatever order they were tapped", async () => {
     const session = await signIn();
-    await walkTo(session, "struggles");
+    await walkTo(session, "barriers");
     const html = await (await get("/start/q", session)).text();
-    expect(html).toContain('name="prompt" value="struggles"');
-    // The chips are the new vocabulary's, labelled from the content — none of the retired eight.
-    expect(html).toContain('value="consistency"');
+    expect(html).toContain('name="prompt" value="barriers"');
+    // The chips are the new vocabulary's, labelled from the content — none of the retired one.
+    expect(html).toContain('value="too_long"');
     expect(html).not.toContain('value="binge"');
-    const res = await post("/start/q", { prompt: "struggles", answer: ["ideas", "busy"] }, session);
+    const res = await post("/start/q", { prompt: "barriers", answer: ["forgot", "too_long"] }, session);
     expect(res.status).toBe(303);
-    expect((await store.getProfile(await webUser(session)))!.struggles).toEqual(["busy", "ideas"]);
+    expect((await store.getProfile(await webUser(session)))!.barriers).toEqual(["too_long", "forgot"]);
   });
 
   it("sends the diet pick AS diet and lets the server write the tag", async () => {
@@ -1205,10 +1244,13 @@ describe("the v2 questions that write the new fields", () => {
     const res = await post("/start/q?asked=diet", { prompt: "diet", answer: ["pescatarian"] }, session);
     const loc = res.headers.get("location") ?? "";
     expect(loc).toContain("asked=diet");
-    // The COMPLETING write is the exception — it answers with the first card, not a question.
+    // `medical` is no longer the last question — the streak is — so its write carries BOTH marks
+    // forward to it rather than answering with a card.
     await walkTo(session, "medical");
     const done = await post("/start/q?asked=diet", { prompt: "medical", answer: ["none"] }, session);
-    expect(done.headers.get("location")).toContain("show=ontrack");
+    const doneLoc = done.headers.get("location") ?? "";
+    expect(doneLoc).toContain("asked=diet");
+    expect(doneLoc).toContain("asked=medical");
   });
 
   it("writes medical [] for 'none', and keeps a picked diet", async () => {
@@ -1221,11 +1263,11 @@ describe("the v2 questions that write the new fields", () => {
     expect((await store.getProfile(await webUser(session)))!.restrictions).toEqual(["mediterranean"]);
   });
 
-  it("finishes onboarding on the LAST question's patch — `medical`, and the plan's gate holds", async () => {
+  it("finishes onboarding on the LAST question's patch — the streak — and the plan's gate holds", async () => {
     const session = await signIn();
     await answerAll(session, ANSWERS);
-    // Medical was the last field prompt, so the profile is onboarded already — and the plan's gate
-    // agrees, which is `full.onboarded` on the same `onboarded_at`.
+    // The streak was the last field prompt, so the profile is onboarded already — and the plan's
+    // gate agrees, which is `full.onboarded` on the same `onboarded_at`.
     expect((await store.getProfile(await webUser(session)))!.onboarded_at).not.toBeNull();
     expect((await get("/start/q", session)).headers.get("location")).toBe("/start/plan");
   });
@@ -2492,11 +2534,21 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
 
       const seen: string[] = [];
       let cookie: string | undefined;
-      for (let i = 0; i < 20; i++) {
-        const page = await get("/start/q", cookie, headers);
+      let next = "/start/q";
+      for (let i = 0; i < 40; i++) {
+        const page = await get(next, cookie, headers);
         if (page.status === 303) break;
         const html = await page.text();
-        const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+        const match = html.match(/name="prompt" value="([a-z_]+)"/);
+        if (match === null) {
+          // An interstitial (`?show=baseline` / `?show=prelim`): its Continue is a link, not a form.
+          const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
+            ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
+          if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
+          next = href.replace(/&amp;/g, "&");
+          continue;
+        }
+        const id = match[1]!;
         seen.push(id);
 
         // EVERY page, not just the last: the bug this replaces was a German welcome followed by
@@ -2518,11 +2570,16 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         // The first answer mints the session account — keep its cookie.
         const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
         if (set) cookie = set.split(";")[0]!;
+        // Follow the redirect like a browser: it names the next page — a `?show=` card, or the
+        // next question with its `?asked=` marks, which are the walk's memory of diet/medical.
+        next = res.headers.get("location") ?? "/start/q";
+        // The completing post leaves the walk — `/start/plan` — and what follows is not a question.
+        if (!next.startsWith("/start/q")) break;
       }
 
       // Country is NOT a walk question (S8) — it waits for the sign-up below.
       expect(seen, lang).not.toContain("country");
-      expect(seen.at(-1), lang).toBe("medical");
+      expect(seen.at(-1), lang).toBe("streak_goal_days");
 
       // The plan, then the consent screen — in the language the questions were answered in,
       // which the first answer wrote into the session account.
@@ -2616,8 +2673,11 @@ describe("the counter and Back (#53)", () => {
     // The progress a question shows is the one continuous bar; `lit` is how far it is filled.
     const fill = (html: string): number => Number(html.match(/class="dash"[^>]*><i style="--from:[\d.]+%;--to:([\d.]+)%/)?.[1] ?? NaN);
     const seen: { lit: number; id: string }[] = [];
-    for (let i = 0; i < 25; i++) {
-      const page = await get("/start/q", session, BRITISH);
+    // Follow the redirect like a browser: a POST can name a `?show=` card, and the `?asked=` marks
+    // it appends are the walk's memory of diet/medical — losing either stalls on the same page.
+    let next = "/start/q";
+    for (let i = 0; i < 40; i++) {
+      const page = await get(next, session, BRITISH);
       if (page.status === 303) return seen;
       const html = await page.text();
       const m = html.match(/name="prompt" value="([a-z_]+)"/);
@@ -2627,12 +2687,16 @@ describe("the counter and Back (#53)", () => {
         const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
           ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
         if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
-        await get(href.replace(/&amp;/g, "&"), session, BRITISH);
+        next = href.replace(/&amp;/g, "&");
         continue;
       }
       const id = m[1]!;
       seen.push({ lit: fill(html), id });
-      await post("/start/q", { prompt: id, answer: answers[id]! }, session);
+      const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+      const res = await post(action, { prompt: id, answer: answers[id]! }, session);
+      next = res.headers.get("location") ?? "/start/q";
+      // The completing post leaves the walk — `/start/plan` — and what follows is not a question.
+      if (!next.startsWith("/start/q")) return seen;
     }
     throw new Error("onboarding did not finish");
   }
@@ -2689,14 +2753,14 @@ describe("the counter and Back (#53)", () => {
     const session = await signIn("show-refuse");
     // Nothing answered: both cards sit AFTER the open question (goal), and "nope" is no beat at
     // all — each redirects into the walk rather than serving.
-    for (const bad of ["nope", "how", "ontrack"]) {
+    for (const bad of ["nope", "baseline", "prelim"]) {
       const res = await get(`/start/q?show=${bad}`, session);
       expect(res.status, bad).toBe(303);
       expect(res.headers.get("location"), bad).toBe("/start/q");
     }
     // Mid-walk, with questions still open, a card is not due either.
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
-    const early = await get("/start/q?show=ontrack", session);
+    const early = await get("/start/q?show=baseline", session);
     expect(early.status).toBe(303);
     expect(early.headers.get("location")).toBe("/start/q");
   });
@@ -2709,9 +2773,11 @@ describe("the counter and Back (#53)", () => {
     expect((await store.getProfile(await webUser(session)))!.restrictions)
       .toEqual(expect.arrayContaining(["ldl"]));
     // Back into the question (#53's edit), tick "none of these" — a no-script browser could
-    // send it beside a real tag, and the only honest read of both is none.
+    // send it beside a real tag, and the only honest read of both is none. `medical` is a view
+    // of `restrictions`: mid-walk the edit bounces into the question itself, which is the same
+    // place a Back lands — the chips render unticked, so an empty post would store `[]`.
     const edit = await get("/start/q?edit=medical", session);
-    expect(edit.status).toBe(200);
+    expect(edit.status).toBe(303);
     const res = await post("/start/q", { prompt: "medical", answer: ["ldl", "none"] }, session);
     expect(res.status).toBe(303);
     const p = (await store.getProfile(await webUser(session)))!;

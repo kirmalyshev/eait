@@ -80,6 +80,51 @@ export const STRUGGLES = ["consistency", "habits", "support", "busy", "ideas"] a
 export type Struggle = (typeof STRUGGLES)[number];
 
 /**
+ * "Counted calories before?" — the four answers, in list order (onboarding polish, Oct 2026).
+ * The pick branches the flow: `never` skips the barrier question and rewords the situation one.
+ */
+export const COUNTED_BEFORE = ["never", "stopped", "onoff", "now"] as const;
+export type CountedBefore = (typeof COUNTED_BEFORE)[number];
+
+/**
+ * "What stopped you?" picks, in list order — the stored vocabulary. `creeping` and `not_enough`
+ * are shown only to a maintainer and a gainer respectively (`barrierValues`); the six before them
+ * are offered to everyone the question reaches.
+ */
+export const BARRIERS = [
+  "too_long", "forgot", "invisible", "no_idea", "stressful", "nobody", "creeping", "not_enough",
+] as const;
+export type Barrier = (typeof BARRIERS)[number];
+
+/** "When is logging hardest?" picks, in list order. */
+export const SITUATIONS = ["workdays", "eating_out", "cooking", "snacks", "evenings"] as const;
+export type Situation = (typeof SITUATIONS)[number];
+
+/**
+ * The starter keys: the five shipped ones keyed by the struggle each replaced (`STARTER_FOR_PICK`
+ * holds the mapping), plus `eatmore` — the gainer's starter, offered only where a gainer's pick
+ * earns it. A key is what a starter IS, not what asked for it: two different picks can earn the
+ * same one, which is why the rows dedupe.
+ */
+export type StarterKey = Struggle | "eatmore";
+export const STARTER_KEYS: readonly StarterKey[] = [...STRUGGLES, "eatmore"];
+
+/**
+ * Which starter a barrier or situation pick earns (polish §3.4, the reader re-mapped). Several
+ * picks earn the same starter: "I forgot" and "Evenings and weekends" both earn the week review.
+ * In `types.ts` rather than beside a reader, because BOTH starter tables consume it — the
+ * catalog's `starterRowsFor` (`chat.ts`) and the bundle's `starterRows` (`app/chat-copy.ts`),
+ * and a second copy of the mapping is the drift the rows' dedupe exists to prevent.
+ */
+export const STARTER_FOR_PICK: Record<Barrier | Situation, StarterKey> = {
+  too_long: "busy", forgot: "consistency", invisible: "consistency",
+  no_idea: "ideas", stressful: "habits", nobody: "support",
+  creeping: "consistency", not_enough: "eatmore",
+  workdays: "busy", eating_out: "habits", cooking: "habits",
+  snacks: "habits", evenings: "consistency",
+};
+
+/**
  * Every language the server stores, the model answers in, and the picker offers.
  *
  * IN PICKER ORDER, and English first because it is the one `Localized<T>` requires. The rest are
@@ -135,6 +180,15 @@ export interface Profile {
    * an interruption.
    */
   struggles: Struggle[] | null;
+  /** "Counted calories before?" — null = never asked. Branches the two questions after it. */
+  counted_before: CountedBefore | null;
+  /**
+   * The "what stopped you" and "where logging is hard" picks, stored in LIST order like
+   * `struggles`: `null` is never-asked, `[]` is asked-and-nothing-picked. They order Chat's
+   * starters — the reader the retired `struggles` question fed.
+   */
+  barriers: Barrier[] | null;
+  situations: Situation[] | null;
   /** Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it. */
   streak_goal_days: StreakGoal | null;
   /** Fibre/sugar/sodium goal overrides (#914); null = the default in `micro-goals.ts`. */

@@ -594,6 +594,11 @@ msgstr "રાતના ભોજન માટે હળવો વિકલ્�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "આજે વધુ ખાવાની સહેલી રીત કઈ છે?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "તમારો પહેલો દિવસ શરૂ થઈ ગયો છે. 20:30 વાગ્યે તમને એક સંદેશ મળશે — આજનો દિવસ, પ્લાનની સરખામણીમાં, અને કાલ માટે એક નક્કર વાત. તે પહેલાં કંઈ નહીં."
 

@@ -7,7 +7,7 @@
 // simply be told no.
 
 import { MAX_PROFILE_TEXT,
-  DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, STREAK_GOALS, STRUGGLES, UNITS,
+  BARRIERS, COUNTED_BEFORE, DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, SITUATIONS, STREAK_GOALS, STRUGGLES, UNITS,
   checkTargetWeight, explainTargets,
   ageFrom, isAcceptableWeightKg, isDietTag, isMedicalTag, dateMinus, localDate, migrateActivityLevel, offerMath,
   paywallPrice, perMonth, threadCopyFor,
@@ -271,6 +271,24 @@ export async function patchProfile(
     patch.struggles = req.struggles === null
       ? null
       : STRUGGLES.filter((t) => (req.struggles as unknown[]).includes(t));
+  }
+  if (req.counted_before !== undefined) {
+    if (req.counted_before !== null && !(COUNTED_BEFORE as readonly string[]).includes(req.counted_before)) {
+      return reject("counted_before", "out-of-range");
+    }
+    patch.counted_before = req.counted_before;
+  }
+  if (req.barriers !== undefined) {
+    if (req.barriers !== null && !Array.isArray(req.barriers)) return reject("barriers", "out-of-range");
+    patch.barriers = req.barriers === null
+      ? null
+      : BARRIERS.filter((t) => (req.barriers as unknown[]).includes(t));
+  }
+  if (req.situations !== undefined) {
+    if (req.situations !== null && !Array.isArray(req.situations)) return reject("situations", "out-of-range");
+    patch.situations = req.situations === null
+      ? null
+      : SITUATIONS.filter((t) => (req.situations as unknown[]).includes(t));
   }
   if (req.streak_goal_days !== undefined) {
     if (req.streak_goal_days !== null && !(STREAK_GOALS as readonly number[]).includes(req.streak_goal_days)) {

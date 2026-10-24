@@ -16,12 +16,12 @@ import {
   ACTIVITY_LEVELS, CHAT_PROMPTS, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS,
   MASCOT_MOODS, ONBOARDING_INTERSTITIALS, ONBOARDING_PLACES, ONBOARDING_STEPS,
   PLAN_REVEAL, SCREEN_OPTIONS,
-  MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES, DIETS, MEDICAL_TAGS,
+  MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_WEIGHT_KG, DIETS, MEDICAL_TAGS,
   answerLabel, askLines, askPlaceholder, capNote, chatCopyFor, checkDirection, checkNumber,
   countryLabel, dietOf, explainTargets, isAnswered, medicalOf, minHealthyKg, offerHeadline,
-  ontrackCaption, pacePreview, planHeadline, planRows, promptsFor, reconcileGoalEdit, resumeAt,
+  pacePreview, planHeadline, planRows, promptsFor, reconcileGoalEdit, resumeAt,
   screenForStep, screenOptionValues, screenOptions, switchedLine, weightDisplay,
-  type ChatPromptId, type Profile, type Struggle,
+  type ChatPromptId, type Profile,
 } from "./index.ts";
 import { spudSvg } from "./mascot.ts";
 import { onboardingContentFor } from "./onboarding-content.ts";
@@ -30,7 +30,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    units: null, struggles: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: null,
+    units: null, struggles: null, counted_before: null, barriers: null, situations: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
     ...over,
@@ -46,18 +46,18 @@ const promptById = (id: ChatPromptId) => CHAT_PROMPTS.find((p) => p.id === id)!;
 describe("the order of the conversation", () => {
   it("is the design's — v2, one question a screen", () => {
     expect(ids(profile())).toEqual([
-      "welcome", "goal", "sex", "twice", "birth_year", "height_cm", "weight_kg", "baseline",
-      "activity", "target_weight_kg", "possible", "pace", "struggles", "streak_goal_days",
-      "diet", "medical", "ontrack", "how", "summary", "signup",
+      "welcome", "goal", "sex", "birth_year", "height_cm", "weight_kg", "activity", "baseline",
+      "target_weight_kg", "pace", "prelim", "counted_before", "barriers", "situations",
+      "diet", "medical", "summary", "signup", "streak_goal_days",
     ]);
   });
 
-  it("puts the health sync LAST, only on a surface that can read it", () => {
+  it("puts the health sync after the sign-up, only on a surface that can read it", () => {
     // v2 moved it out of the head: the body is typed on the rulers now, and Health only keeps the
-    // numbers current — a post-sign-up offer, not a shortcut.
+    // numbers current — a post-sign-up offer, not a shortcut. The streak is the one place later.
     const withHealth = ids(profile(), ["country"], true);
-    expect(withHealth[withHealth.length - 1]).toBe("health");
     expect(withHealth.indexOf("health")).toBeGreaterThan(withHealth.indexOf("signup"));
+    expect(withHealth.indexOf("health")).toBeLessThan(withHealth.indexOf("streak_goal_days"));
     // The browser passes { health: false } and never meets it.
     expect(ids(profile(), ["country"], false)).not.toContain("health");
   });
@@ -66,9 +66,10 @@ describe("the order of the conversation", () => {
     const maintaining = ids(profile({ goal: "maintain" }));
     expect(maintaining).not.toContain("target_weight_kg");
     expect(maintaining).not.toContain("pace");
-    // The struggles and the plan stay: a maintainer gets the same support and the same card.
-    expect(maintaining).toContain("struggles");
-    expect(maintaining).toContain("ontrack");
+    // The picks and the plan stay: a maintainer gets the same questions and the same card.
+    expect(maintaining).toContain("counted_before");
+    expect(maintaining).toContain("barriers");
+    expect(maintaining).toContain("situations");
     expect(maintaining).toContain("summary");
   });
 
@@ -102,18 +103,30 @@ describe("where a killed run picks up", () => {
     expect(list[resumeAt(list, p)]!.id).toBe("weight_kg");
   });
 
-  it("reads struggles off its own column: null asks, an answered-empty does not", () => {
-    // `struggles` IS a profile field now — `null` is "never asked" and `[]` is "asked, picked
-    // nothing". A resumed run that answered-empty does not meet the question again.
+  it("reads the chip picks off their own columns: null asks, an answered-empty does not", () => {
+    // `barriers`/`situations` store real arrays — `null` is "never asked" and `[]` is "asked,
+    // picked nothing". A resumed run that answered-empty does not meet the question again.
     const before = profile({
       goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
-      activity: "some", target_weight_kg: 88, pace: "steady",
+      activity: "some", target_weight_kg: 88, pace: "steady", counted_before: "stopped",
     });
     const list = promptsFor(before, ["country"], { health: false });
-    expect(list[resumeAt(list, before)]!.id).toBe("struggles");
-    const pickedNothing = profile({ ...before, struggles: [] });
+    expect(list[resumeAt(list, before)]!.id).toBe("barriers");
+    const pickedNothing = profile({ ...before, barriers: [] });
     const list2 = promptsFor(pickedNothing, ["country"], { health: false });
-    expect(list2.slice(resumeAt(list2, pickedNothing)).map((x) => x.id)).not.toContain("struggles");
+    expect(list2[resumeAt(list2, pickedNothing)]!.id).toBe("situations");
+  });
+
+  it("skips the barrier question for a first-timer, and asks its situation variant anyway", () => {
+    // "Counted calories before?" → "Never" means nothing ever stopped them: `stepApplies`
+    // removes `barriers`, and `situations` stays — its copy carries the first-timer wording.
+    const never = profile({
+      goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
+      activity: "some", target_weight_kg: 88, pace: "steady", counted_before: "never",
+    });
+    const list = promptsFor(never, ["country"], { health: false });
+    expect(list.map((x) => x.id)).not.toContain("barriers");
+    expect(list[resumeAt(list, never)]!.id).toBe("situations");
   });
 
   it("holds diet only for a mid-run Balanced, and medical until completion — the binding rule", () => {
@@ -122,7 +135,8 @@ describe("where a killed run picks up", () => {
     // Medical is answered by `onboarded_at`, exactly the rule `restrictions` always had.
     const midRun = profile({
       goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
-      activity: "some", target_weight_kg: 88, pace: "steady", struggles: ["busy"], streak_goal_days: 14,
+      activity: "some", target_weight_kg: 88, pace: "steady",
+      counted_before: "stopped", barriers: ["too_long"], situations: ["workdays"], streak_goal_days: 14,
     });
     expect(isAnswered(promptById("diet"), midRun)).toBe(false);
     expect(isAnswered(promptById("medical"), midRun)).toBe(false);
@@ -155,12 +169,12 @@ describe("what Spud asks", () => {
   it("carries a placeholder for everything typed and none for what is tapped", () => {
     expect(askPlaceholder(promptById("birth_year"), content)).toBe("Your age");
     expect(askPlaceholder(promptById("goal"), content)).toBeNull();
-    expect(askPlaceholder(promptById("struggles"), content)).toBeNull();
+    expect(askPlaceholder(promptById("barriers"), content)).toBeNull();
   });
 
   it("asks the front door from the content, and asks nothing on the beats", () => {
     expect(askLines(promptById("welcome"), { content, lang: "en" }, profile())).toEqual(content.welcome.lines);
-    for (const id of ["how", "ontrack", "summary", "signup"] as const) {
+    for (const id of ["baseline", "prelim", "summary", "signup"] as const) {
       expect(askLines(promptById(id), { content, lang: "en" }, profile()), id).toEqual([]);
     }
   });
@@ -204,10 +218,11 @@ describe("the answer a resumed run draws back", () => {
       .toBe("None of these");
   });
 
-  it("names the struggles picked, joined in stored (list) order", () => {
-    // `struggles` is stored in vocabulary order at PATCH time, so the echo reads the same.
-    expect(answerLabel(promptById("struggles"), profile({ struggles: ["habits", "busy"] }), { content, lang: "en" }))
-      .toBe("Unhealthy eating habits · Busy schedule");
+  it("names the picks, joined in stored (list) order", () => {
+    // The picks are stored in vocabulary order at PATCH time, so the echo reads the same.
+    const opts = screenOptions(content, "barrier");
+    expect(answerLabel(promptById("barriers"), profile({ barriers: ["too_long", "forgot"] }), { content, lang: "en" }))
+      .toBe(`${opts.too_long!.label} · ${opts.forgot!.label}`);
   });
 });
 
@@ -383,28 +398,6 @@ describe("the plan reveal's rows", () => {
     for (const t of PLAN_REVEAL.rowTicksMs) {
       expect(t).toBeGreaterThan(0);
       expect(t).toBeLessThan(PLAN_REVEAL.durationMs);
-    }
-  });
-});
-
-describe("the on-track caption", () => {
-  it("is the FIRST picked struggle's own line, in list order", () => {
-    // The pick order is canonical (STRUGGLES order, not tap order) — the caption cannot depend on
-    // which chip was touched first.
-    expect(ontrackCaption(["consistency"], "en")).toContain("missed day");
-    expect(ontrackCaption(["busy", "consistency"], "en")).toContain("missed day");
-  });
-
-  it("says nothing when nothing was picked — no guessed caption", () => {
-    expect(ontrackCaption(null, "en")).toBeNull();
-    expect(ontrackCaption([], "en")).toBeNull();
-  });
-
-  it("has a caption for every struggle in every language", () => {
-    for (const lang of LANGS) {
-      for (const s of STRUGGLES) {
-        expect(ontrackCaption([s], lang), `${lang}.${s}`)?.toBeTruthy();
-      }
     }
   });
 });

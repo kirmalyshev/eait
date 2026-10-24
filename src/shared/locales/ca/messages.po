@@ -594,6 +594,11 @@ msgstr "Quina alternativa més lleugera hi ha per sopar?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Quina és una manera fàcil de menjar més avui?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "El teu primer dia ha començat. A les 20:30 rebràs un missatge — avui davant el pla, i una cosa concreta per a demà. Res abans."
 

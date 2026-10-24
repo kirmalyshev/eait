@@ -594,6 +594,11 @@ msgstr "ਰਾਤ ਦੇ ਖਾਣੇ ਲਈ ਹਲਕਾ ਬਦਲ ਕੀ ਹ�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "ਅੱਜ ਵੱਧ ਖਾਣ ਦਾ ਸੌਖਾ ਤਰੀਕਾ ਕੀ ਹੈ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "ਤੁਹਾਡਾ ਪਹਿਲਾ ਦਿਨ ਸ਼ੁਰੂ ਹੋ ਗਿਆ। 20:30 'ਤੇ ਤੁਹਾਨੂੰ ਇੱਕ ਸੁਨੇਹਾ ਮਿਲੇਗਾ — ਅੱਜ ਦਾ ਦਿਨ, ਪਲਾਨ ਦੇ ਮੁਕਾਬਲੇ, ਅਤੇ ਕੱਲ੍ਹ ਲਈ ਇੱਕ ਠੋਸ ਗੱਲ। ਉਸ ਤੋਂ ਪਹਿਲਾਂ ਕੁਝ ਨਹੀਂ।"
 

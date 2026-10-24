@@ -594,6 +594,11 @@ msgstr "มื้อเย็นมีอะไรเบาๆ ให้เป�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "มีวิธีง่าย ๆ อะไรให้กินเพิ่มได้บ้างในวันนี้?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "วันแรกของคุณเริ่มแล้ว ตอน 20:30 คุณจะได้สรุปหนึ่งบรรทัด — วันนี้เทียบกับแผน และสิ่งที่ทำได้จริงหนึ่งอย่างสำหรับพรุ่งนี้ ก่อนหน้านั้นไม่มีอะไร"
 

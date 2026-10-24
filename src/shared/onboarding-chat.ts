@@ -32,7 +32,7 @@
 // back. `struggles` stayed because it picks the on-track caption that appears one beat later.
 
 import {
-  DIETS, MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MEDICAL_TAGS, MIN_AGE, MIN_WEIGHT_KG, dietOf,
+  ageFrom, DIETS, MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MEDICAL_TAGS, MIN_AGE, MIN_WEIGHT_KG, dietOf,
   explainTargets, medicalOf, minHealthyWeightKg,
 } from "./targets.ts";
 import { fill, kcalNumbers, numbers, spellUnit, wholeNumbers } from "./lang.ts";
@@ -40,9 +40,12 @@ import { projectGoal, projectionMonth, previewProjection } from "./projection.ts
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { planCopyFor } from "./app/plan-copy.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
-import { threadCopyFor } from "./chat-copy.ts";
-import { ACTIVITY_LEVELS, PACES, SEXES, STREAK_GOALS, STRUGGLES } from "./types.ts";
-import type { Goal, Lang, Pace, Profile, Struggle, Units, Verdict, VerdictDimension } from "./types.ts";
+import {
+  ACTIVITY_LEVELS, COUNTED_BEFORE, PACES, SEXES, SITUATIONS, STREAK_GOALS,
+} from "./types.ts";
+import type {
+  Goal, Lang, Pace, Profile, Units,
+} from "./types.ts";
 import {
   isKnownScreen, optionLabel, screenForStep, screenOptionValues, screenOptions, stepApplies,
   type OnboardingContent, type OnboardingPlace, type OnboardingScreenId, type OnboardingStep,
@@ -58,9 +61,10 @@ import {
  * already passed it (see `resumeAt`).
  */
 export type ChatPromptId =
-  | "welcome" | "goal" | "how" | "sex" | "twice" | "birth_year" | "height_cm" | "weight_kg"
-  | "baseline" | "activity" | "target_weight_kg" | "possible" | "pace" | "struggles" | "streak_goal_days" | "ontrack"
-  | "diet" | "medical" | "summary" | "signup" | "country" | "health";
+  | "welcome" | "goal" | "sex" | "birth_year" | "height_cm" | "weight_kg"
+  | "baseline" | "activity" | "target_weight_kg" | "pace" | "prelim"
+  | "counted_before" | "barriers" | "situations"
+  | "diet" | "medical" | "summary" | "signup" | "country" | "health" | "streak_goal_days";
 
 /**
  * How an answer is given.
@@ -92,39 +96,32 @@ export interface ChatPrompt {
  * not a conversation-only pick. Five, Cal AI's, in list order; the first picked writes the
  * on-track caption.
  */
-export const STRUGGLE_LABELS = (content: OnboardingContent): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(content.screens.find((s) => s.id === "struggles")?.options ?? {})
-      .map(([k, v]) => [k, v.label]),
-  );
-
 export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },
   { id: "goal", place: "goal", field: "goal", kind: "choice", options: ["lose", "maintain", "gain"] },
   { id: "sex", place: "sex", field: "sex", kind: "choice", options: SEXES },
-  // Three beats between the questions: each reads the profile and writes nothing. `twice` is the
-  // cited-study card, `baseline` the BMI the typed height and weight compute, `possible` the target
-  // distance said back. Their READER is the funnel (`place`), the way `referral`'s is.
-  { id: "twice", place: "twice", kind: "auto" },
   { id: "birth_year", place: "age", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "height", field: "height_cm", kind: "number" },
   { id: "weight_kg", place: "weight", field: "weight_kg", kind: "number" },
-  { id: "baseline", place: "baseline", kind: "auto" },
   { id: "activity", place: "activity", field: "activity", kind: "choice", options: ACTIVITY_LEVELS },
+  // `baseline` — the BMI the typed height and weight compute. A beat: reads the profile, writes
+  // nothing; its READER is the funnel (`place`), the way `referral`'s is. Hidden under 18.
+  { id: "baseline", place: "baseline", kind: "auto" },
   { id: "target_weight_kg", place: "target", field: "target_weight_kg", kind: "number" },
-  { id: "possible", place: "possible", kind: "auto" },
   { id: "pace", place: "pace", field: "pace", kind: "choice", options: PACES },
-  { id: "struggles", place: "struggles", field: "struggles", kind: "chips", options: STRUGGLES },
-  { id: "streak_goal_days", place: "streak", field: "streak_goal_days", kind: "choice", options: STREAK_GOALS.map(String) },
+  // `prelim` — the mid-journey plan: burn vs. the number the answers produce, said plainly.
+  { id: "prelim", place: "prelim", kind: "auto" },
+  { id: "counted_before", place: "counted", field: "counted_before", kind: "choice", options: COUNTED_BEFORE },
+  // NO `options`, and for the same reason as `country`: the list is not a constant — it gains one
+  // option named by the GOAL ("My weight kept creeping back" / "Hard to eat enough") — so every
+  // renderer falls through to `screenOptionValues(screen, lang, goal)`, which is where it has to
+  // come from. A static list here would be a fourth copy that quietly renders the wrong options.
+  { id: "barriers", place: "barrier", field: "barriers", kind: "chips" },
+  { id: "situations", place: "situation", field: "situations", kind: "chips", options: SITUATIONS },
   // `diet` and `medical` carry "fields" that are not profile columns: they are the two VIEWS of
   // `restrictions` (see `OnboardingStep`). The server merges each answer inside the one array.
   { id: "diet", place: "diet", field: "diet", kind: "choice", options: DIETS },
   { id: "medical", place: "medical", field: "medical", kind: "chips", options: [...MEDICAL_TAGS, "none"] },
-  // The two value beats sit after the questions, just before the plan: what the answers are for.
-  // The two-ways chart: a beat, not a question — it reads `struggles` and writes nothing.
-  { id: "ontrack", place: "ontrack", kind: "auto" },
-  // The "how it works" picture: three beats, no answer. Its words are the compiled `how` copy.
-  { id: "how", place: "how", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
   // The account step — the sign-in surface owns it (S8); this list holds its PLACE in the order.
   { id: "signup", place: "signup", kind: "auto" },
@@ -138,6 +135,9 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   // Apple Health is the LAST place now — a post-sign-up sync offer, not the body-facts shortcut it
   // was: onboarding v2 types the body on the rulers and Health only keeps them current.
   { id: "health", place: "health", kind: "health" },
+  // The streak goal is the LAST place now — asked after the first verdict, where its reader
+  // (Home's streak chip) is one tap away, not between the questions where nothing showed it back.
+  { id: "streak_goal_days", place: "streak", field: "streak_goal_days", kind: "choice", options: STREAK_GOALS.map(String) },
 ] as const;
 
 /** One prompt by id. Total for a valid id; the server validates before it calls this. */
@@ -171,26 +171,20 @@ export function promptsFor(
   const off = new Set(disabled);
   return CHAT_PROMPTS.filter((prompt) => {
     if (prompt.id === "health") return surface.health;
-    if (prompt.id === "possible") return possibleApplies(p);
-    // "Lose twice as much weight" is a claim about losing — a maintainer or a gainer is not told it.
-    // Kept while the goal is unanswered, for the reason `possibleApplies` gives.
-    if (prompt.id === "twice") return p.goal === null || p.goal === "lose";
+    // The adult BMI ranges do not apply under eighteen, so the beat is not shown there — and
+    // stays IN while the year is unanswered, or a client building its next step from the walk it
+    // held before the write would never reach it.
+    if (prompt.id === "baseline") return baselineApplies(p);
     if (!prompt.field) return true;
     if (!stepApplies(prompt.field, p)) return false;
     return !off.has(screenForStep(prompt.field));
   });
 }
 
-/**
- * `possible` says the distance back ("Losing 6 kg?"), so it never runs for a maintainer, and never
- * once the typed target sits within half a kilo of the weight — a "Losing 0 kg?" is the bug it
- * guards. Before the target is typed it stays IN: a client that builds its next step from the
- * walk it held before the write (the web POST does) would otherwise never reach it.
- */
-export function possibleApplies(p: Profile): boolean {
-  if (p.goal === "maintain") return false;
-  if (p.weight_kg == null || p.target_weight_kg == null) return true;
-  return Math.abs(p.weight_kg - p.target_weight_kg) >= 0.5;
+/** The BMI beat is for adults: the ranges it draws are the WHO's adult bands. */
+export function baselineApplies(p: Profile): boolean {
+  const age = ageFrom(p.birth_year);
+  return age === null || age >= 18;
 }
 
 /**
@@ -234,7 +228,8 @@ export function resumeAt(prompts: readonly ChatPrompt[], p: Profile): number {
  */
 export function isAnswered(prompt: ChatPrompt, p: Profile): boolean {
   if (!prompt.field) return false;
-  if (prompt.field === "struggles") return p.struggles !== null;
+  if (prompt.field === "barriers") return p.barriers !== null;
+  if (prompt.field === "situations") return p.situations !== null;
   if (prompt.field === "diet") return dietOf(p.restrictions) !== "balanced" || p.onboarded_at !== null;
   if (prompt.field === "medical") return p.onboarded_at !== null;
   return p[prompt.field] !== null;
@@ -283,11 +278,15 @@ export function askLines(
   if (prompt.id === "welcome") return [...content.welcome.lines];
   if (prompt.field) {
     const ask = askContent(content, prompt.field);
+    // A `counted_before` branch can reword the question that follows it: "What stopped you?"
+    // reads differently to somebody who counts today. The variant is copy (`variants`), the
+    // CHOICE of it is the profile's — rule 1, speak to the branch taken.
+    const variant = p.counted_before === null ? undefined : ask?.variants?.[p.counted_before];
     // Never empty: `usableContent` drops a whole revision that is missing an ask, so reaching this
     // fallback means the compiled-in default is what is on screen and something is very wrong.
-    return [...(ask?.lines ?? [])];
+    return [...(variant ?? ask?.lines ?? [])];
   }
-  // `how`, `ontrack`, `summary` and `signup` ask nothing — they are cards the client
+  // `baseline`, `prelim`, `summary` and `signup` ask nothing — they are cards the client
   // draws — so an empty list is the right answer for them rather than a throw.
   return [...(conversationAsks(lang)[prompt.id] ?? [])];
 }
@@ -594,10 +593,11 @@ export function answerLabel(
     if (tags.length === 0) return opts.none?.label ?? "none";
     return tags.map((t) => opts[t]?.label ?? t).join(" · ");
   }
-  if (prompt.field === "struggles") {
-    const opts = screenOptions(content, "struggles");
-    const picked = p.struggles ?? [];
-    return picked.length === 0 ? null : picked.map((s) => opts[s]?.label ?? s).join(" · ");
+  if (prompt.field === "barriers" || prompt.field === "situations") {
+    const picked = p[prompt.field] ?? [];
+    if (picked.length === 0) return null;
+    const opts = screenOptions(content, screenForStep(prompt.field));
+    return picked.map((s) => opts[s]?.label ?? s).join(" · ");
   }
   const raw = p[prompt.field];
   if (raw === null) return null;
@@ -731,45 +731,6 @@ export function maintainRange(kg: number, units: Units | null, lang: Lang): stri
 export function paceEcho(p: Profile, units: Units | null, lang: Lang): string | null {
   if (p.weight_kg === null || p.target_weight_kg === null || p.weight_kg === p.target_weight_kg) return null;
   return fill(chatCopyFor(lang).pace.echo, { from: weightDisplay(p.weight_kg, units, lang), to: weightDisplay(p.target_weight_kg, units, lang) });
-}
-
-/**
- * The on-track beat's caption — the FIRST picked struggle in LIST order writes it ("a card speaks
- * to one struggle"), and nothing picked means no caption rather than a guessed one.
- */
-export function ontrackCaption(picked: readonly Struggle[] | null, lang: Lang): string | null {
-  const first = STRUGGLES.find((s) => picked?.includes(s));
-  // `{coach}` is the coach's name — the captions that promise Chat name her (S9), and the name
-  // is `threadCopyFor`'s one key so the confirmed per-language table lands in one place.
-  return first
-    ? fill(chatCopyFor(lang).ontrack.captions[first], { coach: threadCopyFor(lang).coach.name })
-    : null;
-}
-
-/**
- * The demo meal drawn INSIDE "How it works" — the persona's salmon plate, fixed to the boards,
- * because no meal exists yet. The dish's NAME is copy (`how.meal`); the numbers are this constant
- * so no surface retypes them. The progress row is NOT here: it is the user's own (`howProgress`).
- */
-export const HOW_DEMO = {
-  meal: { kcal: 540, proteinG: 34, carbsG: 48, fatG: 23 },
-  /** The card's two verdict lines — dimensions and verdicts, the words are `verdictPillLabel`'s. */
-  verdicts: [
-    { dimension: "weight", verdict: "warn" },
-    { dimension: "ldl", verdict: "warn" },
-  ] as const satisfies readonly { dimension: VerdictDimension; verdict: Verdict }[],
-} as const;
-
-/**
- * The progress row of "How it works" (16): the user's OWN weight and target where both are typed
- * and they differ (ieat-app#2050) — `how` runs after the target, so that is everyone losing or
- * gaining. Null for a maintainer or a walk with no target, and a client then draws no progress
- * row: never the persona's 74 → 68, which would be somebody else's numbers.
- */
-export function howProgress(p: Profile): { startKg: number; targetKg: number } | null {
-  return p.goal !== "maintain" && p.weight_kg != null && p.target_weight_kg != null && p.weight_kg !== p.target_weight_kg
-    ? { startKg: p.weight_kg, targetKg: p.target_weight_kg }
-    : null;
 }
 
 /**

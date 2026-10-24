@@ -594,6 +594,11 @@ msgstr "Як зробити вечерю легшою?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Який простий спосіб з'їсти сьогодні більше?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Твій перший день почався. О 20:30 прийде одне повідомлення — день у порівнянні з планом і одна конкретна порада на завтра. До того — нічого."
 

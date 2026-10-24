@@ -594,6 +594,11 @@ msgstr "Hva er et lettere alternativ til middag?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Hva er en enkel måte å spise mer på i dag?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Den første dagen din er i gang. Kl. 20:30 får du én melding — dagen mot planen, og én konkret ting for i morgen. Ingenting før det."
 

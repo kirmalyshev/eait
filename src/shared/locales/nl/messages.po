@@ -594,6 +594,11 @@ msgstr "Wat is een lichter alternatief voor het avondeten?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Wat is een makkelijke manier om vandaag meer te eten?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Je eerste dag is begonnen. Om 20:30 krijg je één regel — vandaag vergeleken met het plan, en één concreet ding voor morgen. Daarvoor niets."
 
