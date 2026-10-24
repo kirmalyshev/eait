@@ -594,6 +594,11 @@ msgstr "夕食を軽くするなら何に置き換えればいいですか？"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "今日、手軽にもっと食べられる方法はありますか？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "1日目がスタートしました。20:30に1行だけ届きます。今日の結果とプランの比較と、明日のための具体的なひとことです。それまでは何も届きません。"
 

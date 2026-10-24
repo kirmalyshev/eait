@@ -6,9 +6,9 @@
 
 import { kcalNumbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { BARRIERS, LANGS, SITUATIONS, STRUGGLES } from "./types.ts";
+import { BARRIERS, LANGS, SITUATIONS, STARTER_FOR_PICK, STARTER_KEYS } from "./types.ts";
 import type {
-  Barrier, FoodTargets, Goal, Lang, MealVerdicts, Profile, Situation, Struggle,
+  Barrier, FoodTargets, Goal, Lang, MealVerdicts, Profile, Situation, StarterKey,
 } from "./types.ts";
 import { verdictNoun } from "./verdicts.ts";
 
@@ -129,26 +129,8 @@ export function scriptedLine(
  * was never asked gets the list's first three.
  */
 
-/**
- * The starter keys: the five shipped ones keyed by the struggle each replaced (`STARTER_FOR_PICK`
- * holds the mapping), plus `eatmore` — the gainer's starter, offered only where a gainer's pick
- * earns it. A key is what a starter IS, not what asked for it: two different picks can earn the
- * same one, which is why the rows dedupe.
- */
-export type StarterKey = Struggle | "eatmore";
-export const STARTER_KEYS: readonly StarterKey[] = [...STRUGGLES, "eatmore"];
-
-/**
- * Which starter a barrier or situation pick earns (polish §3.4, the reader re-mapped). Several
- * picks earn the same starter: "I forgot" and "Evenings and weekends" both earn the week review.
- */
-const STARTER_FOR_PICK: Record<Barrier | Situation, StarterKey> = {
-  too_long: "busy", forgot: "consistency", invisible: "consistency",
-  no_idea: "ideas", stressful: "habits", nobody: "support",
-  creeping: "consistency", not_enough: "eatmore",
-  workdays: "busy", eating_out: "habits", cooking: "habits",
-  snacks: "habits", evenings: "consistency",
-};
+// `StarterKey`, `STARTER_KEYS` and `STARTER_FOR_PICK` live in `types.ts`: the bundle's starter
+// table (`app/chat-copy.ts`) reads the same mapping and cannot reach this module's lingui import.
 
 export function startersFor(
   p: Pick<Profile, "barriers" | "situations" | "goal">,

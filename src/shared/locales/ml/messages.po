@@ -594,6 +594,11 @@ msgstr "അത്താഴത്തിന് ലഘുവായ ഒരു പക
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "ഇന്ന് കൂടുതൽ കഴിക്കാനുള്ള എളുപ്പവഴി ഏതാണ്?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "നിങ്ങളുടെ ആദ്യ ദിവസം തുടങ്ങി. 20:30-ന് നിങ്ങൾക്ക് ഒരു സന്ദേശം ലഭിക്കും — ഇന്ന് പ്ലാനുമായി താരതമ്യം ചെയ്ത്, നാളേക്ക് ഒരു വ്യക്തമായ കാര്യവും. അതിനുമുമ്പ് ഒന്നുമില്ല."
 

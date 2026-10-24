@@ -101,6 +101,30 @@ export const SITUATIONS = ["workdays", "eating_out", "cooking", "snacks", "eveni
 export type Situation = (typeof SITUATIONS)[number];
 
 /**
+ * The starter keys: the five shipped ones keyed by the struggle each replaced (`STARTER_FOR_PICK`
+ * holds the mapping), plus `eatmore` — the gainer's starter, offered only where a gainer's pick
+ * earns it. A key is what a starter IS, not what asked for it: two different picks can earn the
+ * same one, which is why the rows dedupe.
+ */
+export type StarterKey = Struggle | "eatmore";
+export const STARTER_KEYS: readonly StarterKey[] = [...STRUGGLES, "eatmore"];
+
+/**
+ * Which starter a barrier or situation pick earns (polish §3.4, the reader re-mapped). Several
+ * picks earn the same starter: "I forgot" and "Evenings and weekends" both earn the week review.
+ * In `types.ts` rather than beside a reader, because BOTH starter tables consume it — the
+ * catalog's `starterRowsFor` (`chat.ts`) and the bundle's `starterRows` (`app/chat-copy.ts`),
+ * and a second copy of the mapping is the drift the rows' dedupe exists to prevent.
+ */
+export const STARTER_FOR_PICK: Record<Barrier | Situation, StarterKey> = {
+  too_long: "busy", forgot: "consistency", invisible: "consistency",
+  no_idea: "ideas", stressful: "habits", nobody: "support",
+  creeping: "consistency", not_enough: "eatmore",
+  workdays: "busy", eating_out: "habits", cooking: "habits",
+  snacks: "habits", evenings: "consistency",
+};
+
+/**
  * Every language the server stores, the model answers in, and the picker offers.
  *
  * IN PICKER ORDER, and English first because it is the one `Localized<T>` requires. The rest are

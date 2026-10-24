@@ -594,6 +594,11 @@ msgstr "Akşam yemeği için daha hafif bir alternatif ne?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Bugün daha fazla yemenin kolay bir yolu ne?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "İlk günün başladı. 20:30'da tek bir mesaj gelir — bugün plana göre nasıl geçti ve yarın için somut bir şey. Ondan önce hiçbir şey."
 

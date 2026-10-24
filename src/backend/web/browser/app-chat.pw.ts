@@ -32,10 +32,10 @@ test("first open draws Spud's greeting and the three starters, in the struggles'
   await expect(icons).toHaveClass([/i-consistency/, /i-habits/, /i-protein/]);
 });
 
-test("the starters follow the account's struggles, its own first", async ({ inWebApp: page }) => {
+test("the starters follow the account's picks, its own first", async ({ inWebApp: page }) => {
   await page.request.patch("/v1/profile", {
     headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
-    data: { struggles: ["busy", "ideas"] },
+    data: { barriers: ["too_long", "no_idea"] },
   });
   await page.reload();
   await expect(page.locator(".opts .opt .ot")).toHaveText([

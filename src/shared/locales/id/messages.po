@@ -600,6 +600,11 @@ msgstr "Ada alternatif lebih ringan untuk makan malam?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Apa cara mudah untuk makan lebih banyak hari ini?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Hari pertamamu sudah dimulai. Pukul 20:30 kamu dapat satu baris — hari ini dibanding rencana, dan satu hal konkret untuk besok. Sebelum itu tidak ada apa-apa."
 

@@ -16,7 +16,7 @@ import { chat, plan, question, shell, type PlanView } from "./page.ts";
 const PERSONA: Profile = {
   user_id: "i18n", lang: "en", goal: "lose", sex: "female", birth_year: 1990,
   height_cm: 170, weight_kg: 80, weight_measured_at: null, target_weight_kg: 70,
-  activity: "few", pace: "steady", units: null, struggles: [], streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: "de",
+  activity: "few", pace: "steady", units: null, struggles: [], counted_before: null, barriers: null, situations: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: "de",
   restrictions: [], medical_limitations: null, food_allergies: null,
   product_limitations: null, onboarded_at: "2026-01-01T00:00:00Z",
 };
@@ -26,7 +26,7 @@ function planView(lang: Lang, hasWebApp = false): PlanView {
   return {
     profile: { ...PERSONA, lang }, targets, basis,
     projection: projectGoal(PERSONA, basis),
-    content: onboardingContentFor(lang), next: "/start/signup", back: "/start/q", hasWebApp, peopleBuilding: null, lang,
+    content: onboardingContentFor(lang), next: "/start/signup", back: "/start/q", hasWebApp, lang,
   };
 }
 

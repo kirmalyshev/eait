@@ -6,7 +6,7 @@
 import { describe, expect, it } from "bun:test";
 import { lintCopy } from "../claims.ts";
 import { LANGS, type Lang } from "../types.ts";
-import { STRUGGLES, type Struggle } from "../types.ts";
+import { BARRIERS, SITUATIONS, type Profile } from "../types.ts";
 import {
   CHAT_SCREEN_COPY, chatScreenCopyFor, coachRowIcon, starterRows, STARTER_ICONS,
   type ChatScreenCopy,
@@ -79,34 +79,35 @@ describe("CHAT_SCREEN_COPY", () => {
     expect(en.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
   });
 
-  it("shows the catalog's own starter words — every language, every struggle set", () => {
+  it("shows the catalog's own starter words — every language, every pick set", () => {
     // The bundle's table restates THREAD_COPY because it cannot reach Lingui (#145): the check
     // that keeps it honest is the catalog's `starterRowsFor` producing the same rows, text for
-    // text, for every language and every subset an onboarding can set.
-    const sets: (readonly Struggle[] | null)[] = [
-      null,
-      STRUGGLES,
-      ["busy", "ideas"] as const,
-      ["support", "consistency", "habits"] as const,
-      ["ideas"] as const,
+    // text, for every language and every pick combination an onboarding can set.
+    const sets: Pick<Profile, "barriers" | "situations" | "goal">[] = [
+      { barriers: null, situations: null, goal: null },
+      { barriers: [...BARRIERS], situations: [...SITUATIONS], goal: "gain" },
+      { barriers: ["too_long", "no_idea"], situations: [], goal: "lose" },
+      { barriers: ["nobody", "forgot", "stressful"], situations: [], goal: "lose" },
+      { barriers: [], situations: ["snacks"], goal: "lose" },
     ];
     for (const lang of LANGS) {
       for (const set of sets) {
         const expected = starterRowsFor(set, lang).map((r) => r.text);
         const actual = starterRows(set, lang).map((r) => r.text);
-        expect(actual, `${lang} ${String(set)}`).toEqual(expected);
-        expect(starterRows(set, lang).map((r) => STARTER_ICONS[r.struggle]))
-          .toEqual(starterRowsFor(set, lang).map((r) => STARTER_ICONS[r.struggle]));
+        expect(actual, `${lang} ${JSON.stringify(set)}`).toEqual(expected);
+        expect(starterRows(set, lang).map((r) => STARTER_ICONS[r.key]))
+          .toEqual(starterRowsFor(set, lang).map((r) => STARTER_ICONS[r.key]));
       }
     }
   });
 
-  it("pairs each starter with its board icon, the struggles in the same order as startersFor", () => {
-    const rows = starterRowsFor(["busy", "ideas"], "en" as Lang);
+  it("pairs each starter with its board icon, the keys in the same order as startersFor", () => {
+    // `too_long` earns `busy` and `no_idea` earns `ideas`; list order leads, consistency fills.
+    const rows = starterRowsFor({ barriers: ["no_idea", "too_long"], situations: [], goal: "lose" }, "en" as Lang);
     expect(rows.map((r) => r.text)).toEqual([
       "I'll just tell you what I ate", "What should I eat tonight?", "How's my week going?",
     ]);
-    expect(rows.map((r) => STARTER_ICONS[r.struggle])).toEqual(["busy", "ideas", "consistency"]);
+    expect(rows.map((r) => STARTER_ICONS[r.key])).toEqual(["busy", "ideas", "consistency"]);
   });
 
   it("gives a coach row the starter's icon, a named macro's icon, or ideas", () => {

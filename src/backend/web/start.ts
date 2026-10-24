@@ -20,7 +20,7 @@
 
 import {
   ageFrom, type OnboardingPlace,
-  AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STREAK_GOALS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  AMBIGUOUS_AGE, BARRIERS, COUNTED_BEFORE, DIETS, MEDICAL_TAGS, SITUATIONS, STREAK_GOALS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   countryOptions, fill,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, defaultUnits, dietOf, disabledScreens, ftInToCm,
@@ -33,8 +33,8 @@ import {
   LANGS_READY, acceptLang, acceptLanguageTags, countText, numbers, signupCopyFor, verdictPillLabel,
   payCopyFor, paywallPrice, perMonth,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type CountryCode, type Diet, type Goal, type Lang,
-  type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
-  type Profile, type StreakGoal, type Struggle, type UnitSystem,
+  type Barrier, type CountedBefore, type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
+  type Profile, type Situation, type StreakGoal, type UnitSystem,
 } from "@eait/shared";
 import type { PayPlanRow } from "@eait/shared/ui/kit";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
@@ -44,7 +44,7 @@ import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal, redeemReferral, referralLink,
-  onboardingContent, peopleBuilding, mintPairingCode, patchProfile, profileView,
+  onboardingContent, mintPairingCode, patchProfile, profileView,
   sendEmailCode, signInWithProvider, verifyEmailCode,
   EMAIL_ADDRESS, EMAIL_RESEND_SEC, normalizeEmail,
   type EngineDeps,
@@ -358,13 +358,13 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
 }
 
 /**
- * The W2 walk — the field questions PLUS the two interstitials after them (`ontrack`, then `how`,
- * just before the plan). The `welcome`, `summary`, `signup`
+ * The W2 walk — the field questions PLUS the two interstitials inside them (`baseline` after the
+ * weight, `prelim` after the pace). The `welcome`, `summary`, `signup`
  * and `country` places are out: the front door renders its own, the rest are the steps after
  * this walk ends (the plan, sign-up — W3).
  */
 /** The cards the walk draws between and after the questions; `summary` and `signup` are not. */
-const BEAT_PLACES: readonly OnboardingPlace[] = ["twice", "baseline", "possible", "ontrack", "how"];
+const BEAT_PLACES: readonly OnboardingPlace[] = ["baseline", "prelim"];
 
 function walkFor(profile: Profile, content: OnboardingContent): ChatPrompt[] {
   const off = disabledScreens(content);
@@ -393,9 +393,10 @@ function optionsFor(
   content: OnboardingContent,
   lang: Lang,
   suggested: string | null = null,
+  goal: Goal | null = null,
 ): QuestionOption[] {
   const screen = screenForStep(prompt.field!);
-  const values = suggestionFirst(prompt.options ?? screenOptionValues(screen, lang), suggested);
+  const values = suggestionFirst(prompt.options ?? screenOptionValues(screen, lang, goal), suggested);
   const labels = screenOptions(content, screen);
   return values.map((value) => ({
     value,
@@ -433,14 +434,30 @@ function answerFor(
   form?: { get(name: string): unknown },
 ): Answered {
   const field = prompt.field!;
-  // The three v2 writes (#82). `struggles` stores the picked chips in the list's own order; `diet`
-  // and `medical` go to the server AS their write views and it rewrites `restrictions` — the web
-  // never composes the tag array, like everywhere else.
-  if (field === "struggles") {
+  // The v2 writes (#82, eait#719). The two chip questions store the picks in the list's own
+  // order; `counted_before` is a single validated pick; `diet` and `medical` go to the server AS
+  // their write views and it rewrites `restrictions` — the web never composes the tag array,
+  // like everywhere else.
+  if (field === "counted_before") {
+    const value = answers[0];
+    if (value === undefined || !(COUNTED_BEFORE as readonly string[]).includes(value)) {
+      return { kind: "missing" };
+    }
+    return { kind: "patch", patch: { counted_before: value as CountedBefore } };
+  }
+  if (field === "barriers") {
     return {
       kind: "patch",
       patch: {
-        struggles: answers.filter((a): a is Struggle => (STRUGGLES as readonly string[]).includes(a)),
+        barriers: answers.filter((a): a is Barrier => (BARRIERS as readonly string[]).includes(a)),
+      },
+    };
+  }
+  if (field === "situations") {
+    return {
+      kind: "patch",
+      patch: {
+        situations: answers.filter((a): a is Situation => (SITUATIONS as readonly string[]).includes(a)),
       },
     };
   }
@@ -1019,7 +1036,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 
     // COUNTRY IS NOT A WALK QUESTION (S8): it waits for the sign-up and is asked on its own
     // screen after it (`/start/country`), preselected where the browser's languages already
-    // answer it. The W2 walk keeps the field questions plus the `how` and `ontrack`
+    // answer it. The W2 walk keeps the field questions plus the `baseline` and `prelim`
     // interstitials — `walkFor` is the one place that order lives.
     const walk = walkFor(profile, content);
     // `diet` and `medical` are the two prompts whose answer the profile cannot SHOW mid-run: a
@@ -1078,7 +1095,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       return askAt(i, null, [], kg);
     }
 
-    // THE INTERSTITIALS: `ontrack` then `how`, after the last question and before the plan.
+    // THE INTERSTITIALS: `baseline` after the weight and `prelim` after the pace.
     // They write nothing, so they are reached only by `?show=` — the POST of the question before
     // them redirects to it, and the page's Continue is a plain GET back to the walk. A `show`
     // that is not the next beat (an id the walk does not hold, or one sitting after the open
@@ -1096,7 +1113,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const following = walk[i + 1];
       const onward = following !== undefined && following.kind === "auto"
         ? `${askPath}${askPath.includes("?") ? "&" : "?"}show=${following.id}` : askPath;
-      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, content, profile.lang, onward, backBefore(walk, i)));
+      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, profile.lang, onward, backBefore(walk, i)));
     }
 
     if (req.method === "GET") {
@@ -1260,8 +1277,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
             }]
           : []);
       }
-      // COMPLETION RIDES THE LAST QUESTION'S PATCH, whichever one it is — `medical`, since country
-      // is S8's own screen after the sign-up and never in this walk. It goes on the patch rather
+      // COMPLETION RIDES THE LAST QUESTION'S PATCH, whichever one it is — `streak_goal_days`, since
+      // country is S8's own screen after the sign-up and never in this walk. It goes on the patch rather
       // than a second POST so a partial write can never mark a run complete.
       const lastField = walk.length - 1 - [...walk].reverse().findIndex((p) => p.field !== undefined);
       const patch: PatchProfileRequest = {
@@ -1378,7 +1395,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const query = url.searchParams.get("q") ?? "";
     // The offer list, once: the POST below validates against it, and so does the `answer` a
     // no-script search carries back — the same form's checked radio, re-arriving as a query param.
-    const offeredValues = optionsFor(prompt, content, lang).map((o) => o.value);
+    const offeredValues = optionsFor(prompt, content, lang, null, profile.goal).map((o) => o.value);
     // A filtered page keeps its pick: `answer` in the query beats the resolved hint, but only
     // once it has proven to be one of the offered values.
     const asked = url.searchParams.get("answer");
@@ -1642,7 +1659,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       next: `${START_PREFIX}/signup`,
       back: backBefore(walkFor(full.profile, content), Infinity),
       hasWebApp: ctx.hasWebApp,
-      peopleBuilding: await peopleBuilding(ctx.deps),
       lang: profile.lang,
     }));
   }
@@ -1797,7 +1813,8 @@ function currentAnswer(prompt: ChatPrompt, p: Profile): string[] {
     const age = ageFrom(p.birth_year);
     return age === null ? [] : [String(age)];
   }
-  if (prompt.field === "struggles") return p.struggles ?? [];
+  if (prompt.field === "barriers") return p.barriers ?? [];
+  if (prompt.field === "situations") return p.situations ?? [];
   if (prompt.field === "streak_goal_days") return p.streak_goal_days === null ? [] : [String(p.streak_goal_days)];
   // The two write views read back through the shared readers — `medical` ticks "none" for the
   // empty set, and `diet` reads balanced when no diet tag survives.

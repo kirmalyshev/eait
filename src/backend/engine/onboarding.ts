@@ -43,20 +43,6 @@ export async function onboardingContent(deps: EngineDeps, lang: Lang): Promise<O
 }
 
 /**
- * The loader's people counter (ieat-app#2050): accounts that finished onboarding in the last day,
- * read from the store every time and never a constant. Null when it cannot be read — logged, and
- * the line is simply not drawn, because a loader is no place to fail onboarding.
- */
-export async function peopleBuilding(deps: EngineDeps): Promise<number | null> {
-  try {
-    return await deps.store.countOnboardedSince(24);
-  } catch (e) {
-    console.error(`[eait] people counter unavailable: ${(e as Error)?.message}`);
-    return null;
-  }
-}
-
-/**
  * Save admin-edited copy for ONE language, leaving the other seven exactly as they were.
  *
  * THE MERGE IS THE STORE'S. This used to read the whole set, spread its own language over it and

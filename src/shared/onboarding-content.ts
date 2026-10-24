@@ -38,8 +38,8 @@ import { DEFAULT_ONBOARDING_CONTENT, usableContent, type OnboardingContent } fro
 const FR: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Un plan pensé pour toi", "Ton objectif, ta journée, tes repas"],
-    cta: "Créer mon plan",
+    lines: ["Compte les calories avec une photo"],
+    cta: "Commencer",
     signin: "J'ai déjà un compte",
   },
   screens: [
@@ -63,11 +63,11 @@ const FR: OnboardingContent = {
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Quelle est ta taille ?"], placeholder: "Taille en cm" } },
+      asks: { height_cm: { lines: ["Taille"], placeholder: "Taille en cm" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Combien pèses-tu aujourd'hui ?"], placeholder: "Poids en kg" } },
+      asks: { weight_kg: { lines: ["Ton poids"], placeholder: "Poids en kg" } },
     },
     {
       id: "activity",
@@ -93,24 +93,51 @@ const FR: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: { struggles: { lines: ["Qu'est-ce qui a été le plus dur ?"] } },
+      id: "counted",
+      asks: { counted_before: { lines: ["Déjà compté les calories ?"] } },
       options: {
-        consistency: { label: "Manque de régularité" },
-        habits: { label: "Habitudes alimentaires malsaines" },
-        support: { label: "Manque de soutien" },
-        busy: { label: "Emploi du temps chargé" },
-        ideas: { label: "Manque d'idées de repas" },
+        never: { label: "Jamais" },
+        stopped: { label: "Essayé, arrêté" },
+        onoff: { label: "Par intermittence" },
+        now: { label: "Je compte en ce moment" },
       },
     },
     {
-      id: "streak",
-      asks: { streak_goal_days: { lines: ["Quelle série viser ?"] } },
+      id: "barrier",
+      asks: {
+        barriers: {
+          lines: ["Qu'est-ce qui t'a arrêté ?", "Choisis tout ce qui s'applique"],
+          variants: {
+            onoff: ["Qu'est-ce qui t'a gêné ?", "Choisis tout ce qui s'applique"],
+            now: ["Qu'est-ce qui te faciliterait la tâche ?", "Choisis tout ce qui s'applique"],
+          },
+        },
+      },
       options: {
-        "7": { label: "7 jours" },
-        "14": { label: "14 jours" },
-        "30": { label: "30 jours" },
-        "50": { label: "50 jours" },
+        too_long: { label: "Ça prenait trop de temps" },
+        forgot: { label: "J'oubliais" },
+        invisible: { label: "Je ne voyais pas de résultats" },
+        no_idea: { label: "Je ne savais pas quoi manger" },
+        stressful: { label: "C'était stressant" },
+        nobody: { label: "Personne à qui demander" },
+        creeping: { label: "Mon poids revenait petit à petit" },
+        not_enough: { label: "Dur de manger assez" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Quand est-ce le plus dur de noter ?"],
+          variants: { never: ["Quand penses-tu que noter sera le plus dur ?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Les jours de travail chargés" },
+        eating_out: { label: "Au restaurant" },
+        cooking: { label: "Cuisiner pour d'autres" },
+        snacks: { label: "Snacks et boissons" },
+        evenings: { label: "Soirs et week-ends" },
       },
     },
     {
@@ -138,9 +165,19 @@ const FR: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Où habites-tu ?"], placeholder: "Rechercher" } },
+      asks: { country: { lines: ["Où manges-tu ?"], placeholder: "Rechercher" } },
       enabled: true,
       options: { other: { label: "Ailleurs" } },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Quelle série viser ?"] } },
+      options: {
+        "7": { label: "7 jours" },
+        "14": { label: "14 jours" },
+        "30": { label: "30 jours" },
+        "50": { label: "50 jours" },
+      },
     },
   ],
   building: {
@@ -173,8 +210,8 @@ const FR: OnboardingContent = {
 const DE: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Ein Plan, der zu dir passt", "Dein Ziel, dein Tag, deine Mahlzeiten"],
-    cta: "Meinen Plan erstellen",
+    lines: ["Kalorien zählen per Foto"],
+    cta: "Los geht's",
     signin: "Ich habe schon ein Konto",
   },
   screens: [
@@ -198,11 +235,11 @@ const DE: OnboardingContent = {
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Wie groß bist du?"], placeholder: "Größe in cm" } },
+      asks: { height_cm: { lines: ["Größe"], placeholder: "Größe in cm" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Was wiegst du heute?"], placeholder: "Gewicht in kg" } },
+      asks: { weight_kg: { lines: ["Dein Gewicht"], placeholder: "Gewicht in kg" } },
     },
     {
       id: "activity",
@@ -228,24 +265,51 @@ const DE: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: { struggles: { lines: ["Was war bisher am schwersten?"] } },
+      id: "counted",
+      asks: { counted_before: { lines: ["Schon mal Kalorien gezählt?"] } },
       options: {
-        consistency: { label: "Mangelnde Regelmäßigkeit" },
-        habits: { label: "Ungesunde Essgewohnheiten" },
-        support: { label: "Fehlende Unterstützung" },
-        busy: { label: "Voller Terminkalender" },
-        ideas: { label: "Fehlende Essensideen" },
+        never: { label: "Nie" },
+        stopped: { label: "Probiert, aufgehört" },
+        onoff: { label: "Mal so, mal so" },
+        now: { label: "Ich zähle gerade" },
       },
     },
     {
-      id: "streak",
-      asks: { streak_goal_days: { lines: ["Welche Serie peilst du an?"] } },
+      id: "barrier",
+      asks: {
+        barriers: {
+          lines: ["Was hat dich gestoppt?", "Wähl alles, was zutrifft"],
+          variants: {
+            onoff: ["Was kam dazwischen?", "Wähl alles, was zutrifft"],
+            now: ["Was würdest du dir leichter wünschen?", "Wähl alles, was zutrifft"],
+          },
+        },
+      },
       options: {
-        "7": { label: "7 Tage" },
-        "14": { label: "14 Tage" },
-        "30": { label: "30 Tage" },
-        "50": { label: "50 Tage" },
+        too_long: { label: "Es dauerte zu lange" },
+        forgot: { label: "Ich hab's vergessen" },
+        invisible: { label: "Ich hab keine Fortschritte gesehen" },
+        no_idea: { label: "Ich wusste nicht, was ich essen soll" },
+        stressful: { label: "Es war stressig" },
+        nobody: { label: "Niemand zum Fragen" },
+        creeping: { label: "Mein Gewicht kam langsam zurück" },
+        not_enough: { label: "Schwer, genug zu essen" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Wann fällt das Eintragen am schwersten?"],
+          variants: { never: ["Wann wird das Eintragen vermutlich am schwersten?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Volle Arbeitstage" },
+        eating_out: { label: "Essen gehen" },
+        cooking: { label: "Für andere kochen" },
+        snacks: { label: "Snacks und Getränke" },
+        evenings: { label: "Abende und Wochenenden" },
       },
     },
     {
@@ -273,9 +337,19 @@ const DE: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Wo wohnst du?"], placeholder: "Suchen" } },
+      asks: { country: { lines: ["Wo isst du?"], placeholder: "Suchen" } },
       enabled: true,
       options: { other: { label: "Woanders" } },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Welche Serie peilst du an?"] } },
+      options: {
+        "7": { label: "7 Tage" },
+        "14": { label: "14 Tage" },
+        "30": { label: "30 Tage" },
+        "50": { label: "50 Tage" },
+      },
     },
   ],
   building: {
@@ -308,8 +382,8 @@ const DE: OnboardingContent = {
 const IT: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Un piano costruito su di te", "Il tuo obiettivo, la tua giornata, i tuoi pasti"],
-    cta: "Crea il mio piano",
+    lines: ["Conta le calorie con una foto"],
+    cta: "Inizia",
     signin: "Ho già un account",
   },
   screens: [
@@ -333,11 +407,11 @@ const IT: OnboardingContent = {
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Qual è la tua altezza?"], placeholder: "Altezza in cm" } },
+      asks: { height_cm: { lines: ["Altezza"], placeholder: "Altezza in cm" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Quanto pesi oggi?"], placeholder: "Peso in kg" } },
+      asks: { weight_kg: { lines: ["Il tuo peso"], placeholder: "Peso in kg" } },
     },
     {
       id: "activity",
@@ -363,24 +437,51 @@ const IT: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: { struggles: { lines: ["Cosa è stato più difficile?"] } },
+      id: "counted",
+      asks: { counted_before: { lines: ["Hai mai contato le calorie?"] } },
       options: {
-        consistency: { label: "Poca costanza" },
-        habits: { label: "Abitudini alimentari sbagliate" },
-        support: { label: "Poco sostegno" },
-        busy: { label: "Agenda piena" },
-        ideas: { label: "Poche idee per i pasti" },
+        never: { label: "Mai" },
+        stopped: { label: "Provato, poi smesso" },
+        onoff: { label: "Ogni tanto" },
+        now: { label: "Le conto adesso" },
       },
     },
     {
-      id: "streak",
-      asks: { streak_goal_days: { lines: ["Quale serie vuoi raggiungere?"] } },
+      id: "barrier",
+      asks: {
+        barriers: {
+          lines: ["Cosa ti ha fermato?", "Scegli tutte quelle che valgono"],
+          variants: {
+            onoff: ["Cosa si è messo in mezzo?", "Scegli tutte quelle che valgono"],
+            now: ["Cosa vorresti più facile?", "Scegli tutte quelle che valgono"],
+          },
+        },
+      },
       options: {
-        "7": { label: "7 giorni" },
-        "14": { label: "14 giorni" },
-        "30": { label: "30 giorni" },
-        "50": { label: "50 giorni" },
+        too_long: { label: "Ci voleva troppo tempo" },
+        forgot: { label: "Dimenticavo" },
+        invisible: { label: "Non vedevo risultati" },
+        no_idea: { label: "Non sapevo cosa mangiare" },
+        stressful: { label: "Era stressante" },
+        nobody: { label: "Nessuno a cui chiedere" },
+        creeping: { label: "Il mio peso tornava su" },
+        not_enough: { label: "Difficile mangiare abbastanza" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Quando è più difficile registrare i pasti?"],
+          variants: { never: ["Quando pensi che registrare i pasti sarà più difficile?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Giornate di lavoro piene" },
+        eating_out: { label: "Mangiare fuori" },
+        cooking: { label: "Cucinare per altri" },
+        snacks: { label: "Snack e bevande" },
+        evenings: { label: "Sere e weekend" },
       },
     },
     {
@@ -408,9 +509,19 @@ const IT: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Dove vivi?"], placeholder: "Cerca" } },
+      asks: { country: { lines: ["Dove mangi?"], placeholder: "Cerca" } },
       enabled: true,
       options: { other: { label: "Altrove" } },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Quale serie vuoi raggiungere?"] } },
+      options: {
+        "7": { label: "7 giorni" },
+        "14": { label: "14 giorni" },
+        "30": { label: "30 giorni" },
+        "50": { label: "50 giorni" },
+      },
     },
   ],
   building: {
@@ -443,8 +554,8 @@ const IT: OnboardingContent = {
 const ES: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Un plan hecho a tu medida", "Tu objetivo, tu día, tus comidas"],
-    cta: "Crear mi plan",
+    lines: ["Cuenta calorías con una foto"],
+    cta: "Empezar",
     signin: "Ya tengo una cuenta",
   },
   screens: [
@@ -468,11 +579,11 @@ const ES: OnboardingContent = {
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["¿Cuánto mides?"], placeholder: "Altura en cm" } },
+      asks: { height_cm: { lines: ["Altura"], placeholder: "Altura en cm" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["¿Cuánto pesas hoy?"], placeholder: "Peso en kg" } },
+      asks: { weight_kg: { lines: ["Tu peso"], placeholder: "Peso en kg" } },
     },
     {
       id: "activity",
@@ -498,24 +609,51 @@ const ES: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: { struggles: { lines: ["¿Qué te ha costado más?"] } },
+      id: "counted",
+      asks: { counted_before: { lines: ["¿Has contado calorías antes?"] } },
       options: {
-        consistency: { label: "Falta de constancia" },
-        habits: { label: "Hábitos de comida poco sanos" },
-        support: { label: "Falta de apoyo" },
-        busy: { label: "Agenda ocupada" },
-        ideas: { label: "Falta de ideas para comer" },
+        never: { label: "Nunca" },
+        stopped: { label: "Lo intenté, lo dejé" },
+        onoff: { label: "A ratos" },
+        now: { label: "Las cuento ahora" },
       },
     },
     {
-      id: "streak",
-      asks: { streak_goal_days: { lines: ["¿Qué racha quieres lograr?"] } },
+      id: "barrier",
+      asks: {
+        barriers: {
+          lines: ["¿Qué te hizo parar?", "Elige todas las que encajen"],
+          variants: {
+            onoff: ["¿Qué te lo puso difícil?", "Elige todas las que encajen"],
+            now: ["¿Qué te gustaría que fuera más fácil?", "Elige todas las que encajen"],
+          },
+        },
+      },
       options: {
-        "7": { label: "7 días" },
-        "14": { label: "14 días" },
-        "30": { label: "30 días" },
-        "50": { label: "50 días" },
+        too_long: { label: "Llevaba demasiado tiempo" },
+        forgot: { label: "Se me olvidaba" },
+        invisible: { label: "No veía resultados" },
+        no_idea: { label: "No sabía qué comer" },
+        stressful: { label: "Me resultaba estresante" },
+        nobody: { label: "Nadie a quien preguntar" },
+        creeping: { label: "Mi peso volvía a subir" },
+        not_enough: { label: "Me costaba comer suficiente" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["¿Cuándo es más difícil registrar?"],
+          variants: { never: ["¿Cuándo crees que registrar será más difícil?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Días de trabajo ajetreados" },
+        eating_out: { label: "Comer fuera" },
+        cooking: { label: "Cocinar para otros" },
+        snacks: { label: "Snacks y bebidas" },
+        evenings: { label: "Tardes y fines de semana" },
       },
     },
     {
@@ -543,9 +681,19 @@ const ES: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["¿Dónde vives?"], placeholder: "Buscar" } },
+      asks: { country: { lines: ["¿Dónde comes?"], placeholder: "Buscar" } },
       enabled: true,
       options: { other: { label: "En otro sitio" } },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["¿Qué racha quieres lograr?"] } },
+      options: {
+        "7": { label: "7 días" },
+        "14": { label: "14 días" },
+        "30": { label: "30 días" },
+        "50": { label: "50 días" },
+      },
     },
   ],
   building: {
@@ -578,8 +726,8 @@ const ES: OnboardingContent = {
 const VI: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Kế hoạch dành riêng cho bạn", "Mục tiêu của bạn, ngày của bạn, bữa ăn của bạn"],
-    cta: "Lập kế hoạch cho mình",
+    lines: ["Đếm calo bằng một tấm ảnh"],
+    cta: "Bắt đầu",
     signin: "Mình đã có tài khoản",
   },
   screens: [
@@ -603,11 +751,11 @@ const VI: OnboardingContent = {
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Bạn cao bao nhiêu?"], placeholder: "Chiều cao (cm)" } },
+      asks: { height_cm: { lines: ["Chiều cao"], placeholder: "Chiều cao (cm)" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Hôm nay bạn nặng bao nhiêu?"], placeholder: "Cân nặng (kg)" } },
+      asks: { weight_kg: { lines: ["Cân nặng của bạn"], placeholder: "Cân nặng (kg)" } },
     },
     {
       id: "activity",
@@ -633,24 +781,51 @@ const VI: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: { struggles: { lines: ["Điều gì đã khó nhất với bạn?"] } },
+      id: "counted",
+      asks: { counted_before: { lines: ["Bạn đã từng đếm calo chưa?"] } },
       options: {
-        consistency: { label: "Thiếu kiên trì" },
-        habits: { label: "Thói quen ăn không lành mạnh" },
-        support: { label: "Thiếu hỗ trợ" },
-        busy: { label: "Lịch trình bận rộn" },
-        ideas: { label: "Thiếu ý tưởng cho bữa ăn" },
+        never: { label: "Chưa bao giờ" },
+        stopped: { label: "Đã thử, rồi bỏ" },
+        onoff: { label: "Thỉnh thoảng" },
+        now: { label: "Mình đang đếm" },
       },
     },
     {
-      id: "streak",
-      asks: { streak_goal_days: { lines: ["Bạn muốn đạt chuỗi bao nhiêu ngày?"] } },
+      id: "barrier",
+      asks: {
+        barriers: {
+          lines: ["Điều gì khiến bạn dừng lại?", "Chọn tất cả những gì đúng"],
+          variants: {
+            onoff: ["Điều gì đã cản trở bạn?", "Chọn tất cả những gì đúng"],
+            now: ["Bạn muốn điều gì dễ hơn?", "Chọn tất cả những gì đúng"],
+          },
+        },
+      },
       options: {
-        "7": { label: "7 ngày" },
-        "14": { label: "14 ngày" },
-        "30": { label: "30 ngày" },
-        "50": { label: "50 ngày" },
+        too_long: { label: "Mất quá nhiều thời gian" },
+        forgot: { label: "Mình hay quên" },
+        invisible: { label: "Không thấy có kết quả" },
+        no_idea: { label: "Không biết nên ăn gì" },
+        stressful: { label: "Cảm thấy căng thẳng" },
+        nobody: { label: "Không có ai để hỏi" },
+        creeping: { label: "Cân nặng cứ tăng trở lại" },
+        not_enough: { label: "Khó ăn đủ" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Khi nào ghi lại bữa ăn khó nhất?"],
+          variants: { never: ["Bạn nghĩ khi nào ghi lại bữa ăn sẽ khó nhất?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Ngày làm việc bận rộn" },
+        eating_out: { label: "Ăn ngoài" },
+        cooking: { label: "Nấu cho người khác" },
+        snacks: { label: "Ăn vặt và đồ uống" },
+        evenings: { label: "Buổi tối và cuối tuần" },
       },
     },
     {
@@ -678,9 +853,19 @@ const VI: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Bạn sống ở đâu?"], placeholder: "Tìm kiếm" } },
+      asks: { country: { lines: ["Bạn ăn ở đâu?"], placeholder: "Tìm kiếm" } },
       enabled: true,
       options: { other: { label: "Nơi khác" } },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Bạn muốn đạt chuỗi bao nhiêu ngày?"] } },
+      options: {
+        "7": { label: "7 ngày" },
+        "14": { label: "14 ngày" },
+        "30": { label: "30 ngày" },
+        "50": { label: "50 ngày" },
+      },
     },
   ],
   building: {
@@ -713,8 +898,8 @@ const VI: OnboardingContent = {
 const ID: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Rencana yang dibuat untukmu", "Tujuanmu, harimu, makananmu"],
-    cta: "Buat rencana aku",
+    lines: ["Hitung kalori dengan foto"],
+    cta: "Mulai",
     signin: "Aku sudah punya akun",
   },
   screens: [
@@ -738,11 +923,11 @@ const ID: OnboardingContent = {
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Berapa tinggimu?"], placeholder: "Tinggi dalam cm" } },
+      asks: { height_cm: { lines: ["Tinggi badan"], placeholder: "Tinggi dalam cm" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Berapa berat badanmu hari ini?"], placeholder: "Berat dalam kg" } },
+      asks: { weight_kg: { lines: ["Berat badanmu"], placeholder: "Berat dalam kg" } },
     },
     {
       id: "activity",
@@ -768,24 +953,51 @@ const ID: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: { struggles: { lines: ["Apa yang selama ini paling sulit?"] } },
+      id: "counted",
+      asks: { counted_before: { lines: ["Pernah hitung kalori?"] } },
       options: {
-        consistency: { label: "Kurang konsisten" },
-        habits: { label: "Kebiasaan makan tidak sehat" },
-        support: { label: "Kurang dukungan" },
-        busy: { label: "Jadwal padat" },
-        ideas: { label: "Kurang ide menu" },
+        never: { label: "Belum pernah" },
+        stopped: { label: "Pernah, lalu berhenti" },
+        onoff: { label: "Kadang-kadang" },
+        now: { label: "Aku masih menghitung" },
       },
     },
     {
-      id: "streak",
-      asks: { streak_goal_days: { lines: ["Mau target streak berapa hari?"] } },
+      id: "barrier",
+      asks: {
+        barriers: {
+          lines: ["Apa yang membuatmu berhenti?", "Pilih semua yang cocok"],
+          variants: {
+            onoff: ["Apa yang menghalangimu?", "Pilih semua yang cocok"],
+            now: ["Apa yang ingin kamu permudah?", "Pilih semua yang cocok"],
+          },
+        },
+      },
       options: {
-        "7": { label: "7 hari" },
-        "14": { label: "14 hari" },
-        "30": { label: "30 hari" },
-        "50": { label: "50 hari" },
+        too_long: { label: "Terlalu lama" },
+        forgot: { label: "Sering lupa" },
+        invisible: { label: "Tidak kelihatan hasilnya" },
+        no_idea: { label: "Tidak tahu mau makan apa" },
+        stressful: { label: "Terasa stres" },
+        nobody: { label: "Tidak ada yang bisa ditanya" },
+        creeping: { label: "Beratku naik lagi pelan-pelan" },
+        not_enough: { label: "Susah makan cukup" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Kapan mencatat paling susah?"],
+          variants: { never: ["Menurutmu kapan mencatat akan paling susah?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Hari kerja yang sibuk" },
+        eating_out: { label: "Makan di luar" },
+        cooking: { label: "Masak untuk orang lain" },
+        snacks: { label: "Camilan dan minuman" },
+        evenings: { label: "Malam dan akhir pekan" },
       },
     },
     {
@@ -813,9 +1025,19 @@ const ID: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Kamu tinggal di mana?"], placeholder: "Cari" } },
+      asks: { country: { lines: ["Kamu makan di mana?"], placeholder: "Cari" } },
       enabled: true,
       options: { other: { label: "Di tempat lain" } },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Mau target streak berapa hari?"] } },
+      options: {
+        "7": { label: "7 hari" },
+        "14": { label: "14 hari" },
+        "30": { label: "30 hari" },
+        "50": { label: "50 hari" },
+      },
     },
   ],
   building: {
@@ -848,8 +1070,8 @@ const ID: OnboardingContent = {
 const RU: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["План, созданный под тебя", "Твоя цель, твой день, твоя еда"],
-    cta: "Создать мой план",
+    lines: ["Считай калории по фото"],
+    cta: "Начать",
     signin: "У меня уже есть аккаунт",
   },
   screens: [
@@ -873,11 +1095,11 @@ const RU: OnboardingContent = {
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Какой у тебя рост?"], placeholder: "Рост в см" } },
+      asks: { height_cm: { lines: ["Рост"], placeholder: "Рост в см" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Сколько ты сейчас весишь?"], placeholder: "Вес в кг" } },
+      asks: { weight_kg: { lines: ["Твой вес"], placeholder: "Вес в кг" } },
     },
     {
       id: "activity",
@@ -903,24 +1125,51 @@ const RU: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: { struggles: { lines: ["Что давалось труднее всего?"] } },
+      id: "counted",
+      asks: { counted_before: { lines: ["Доводилось считать калории?"] } },
       options: {
-        consistency: { label: "Не хватает постоянства" },
-        habits: { label: "Нездоровые пищевые привычки" },
-        support: { label: "Не хватает поддержки" },
-        busy: { label: "Плотный график" },
-        ideas: { label: "Не хватает идей для еды" },
+        never: { label: "Ни разу" },
+        stopped: { label: "Раньше да, теперь нет" },
+        onoff: { label: "С перерывами" },
+        now: { label: "Считаю сейчас" },
       },
     },
     {
-      id: "streak",
-      asks: { streak_goal_days: { lines: ["На какую серию настроимся?"] } },
+      id: "barrier",
+      asks: {
+        barriers: {
+          lines: ["Что тебя остановило?", "Выбери всё, что подходит"],
+          variants: {
+            onoff: ["Что тебе мешало?", "Выбери всё, что подходит"],
+            now: ["Что было бы проще?", "Выбери всё, что подходит"],
+          },
+        },
+      },
       options: {
-        "7": { label: "7 дн." },
-        "14": { label: "14 дн." },
-        "30": { label: "30 дн." },
-        "50": { label: "50 дн." },
+        too_long: { label: "Это занимало слишком много времени" },
+        forgot: { label: "Вылетало из головы" },
+        invisible: { label: "Не было видно результата" },
+        no_idea: { label: "Было непонятно, что есть" },
+        stressful: { label: "Это напрягало" },
+        nobody: { label: "Некого было спросить" },
+        creeping: { label: "Вес всё время возвращался" },
+        not_enough: { label: "Трудно было съедать достаточно" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Когда сложнее всего записывать?"],
+          variants: { never: ["Как думаешь, когда записывать будет сложнее всего?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Загруженные будни" },
+        eating_out: { label: "Еда вне дома" },
+        cooking: { label: "Готовка для других" },
+        snacks: { label: "Перекусы и напитки" },
+        evenings: { label: "Вечера и выходные" },
       },
     },
     {
@@ -948,9 +1197,19 @@ const RU: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Где ты живёшь?"], placeholder: "Поиск" } },
+      asks: { country: { lines: ["Где ты ешь?"], placeholder: "Поиск" } },
       enabled: true,
       options: { other: { label: "Где-то ещё" } },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["На какую серию настроимся?"] } },
+      options: {
+        "7": { label: "7 дн." },
+        "14": { label: "14 дн." },
+        "30": { label: "30 дн." },
+        "50": { label: "50 дн." },
+      },
     },
   ],
   building: {
@@ -1029,10 +1288,10 @@ const TE: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["మీ కోసమే రూపొందించిన ప్లాన్", "మీ లక్ష్యం, మీ రోజు, మీ భోజనాలు"],
-    cta: "నా ప్లాన్ రూపొందించండి",
+    lines: ["ఫోటోతో కేలరీలు లెక్కించండి"],
+    cta: "ప్రారంభించండి",
     signin: "నాకు ఇప్పటికే ఖాతా ఉంది",
   },
   screens: [
@@ -1072,7 +1331,7 @@ const TE: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["మీ ఎత్తు ఎంత?"],
+          lines: ["ఎత్తు"],
           placeholder: "ఎత్తు cmలో",
         },
       },
@@ -1081,7 +1340,7 @@ const TE: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["ఈరోజు మీ బరువు ఎంత?"],
+          lines: ["మీ బరువు"],
           placeholder: "బరువు kgలో",
         },
       },
@@ -1123,28 +1382,51 @@ const TE: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["ఏది కష్టంగా ఉంది?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["ఇంతకు ముందు కేలరీలు లెక్కించారా?"] } },
       options: {
-        consistency: { label: "నిలకడ లేకపోవడం" },
-        habits: { label: "అనారోగ్యకరమైన ఆహారపు అలవాట్లు" },
-        support: { label: "మద్దతు లేకపోవడం" },
-        busy: { label: "బిజీ షెడ్యూల్" },
-        ideas: { label: "భోజన ఆలోచనలు లేకపోవడం" },
+        never: { label: "ఎప్పుడూ లేదు" },
+        stopped: { label: "ప్రయత్నించాను, ఆపేశాను" },
+        onoff: { label: "అప్పుడప్పుడు" },
+        now: { label: "ఇప్పుడు లెక్కిస్తున్నాను" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["లక్ష్యంగా ఒక స్ట్రీక్‌ను ఎంచుకోండి"] },
+        barriers: {
+          lines: ["ఏది మిమ్మల్ని ఆపింది?", "సరిపోయినవన్నీ ఎంచుకోండి"],
+          variants: {
+            onoff: ["ఏది అడ్డం వచ్చింది?", "సరిపోయినవన్నీ ఎంచుకోండి"],
+            now: ["ఏది సులభంగా ఉండాలనుకుంటున్నారు?", "సరిపోయినవన్నీ ఎంచుకోండి"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 రోజులు" },
-        "14": { label: "14 రోజులు" },
-        "30": { label: "30 రోజులు" },
-        "50": { label: "50 రోజులు" },
+        too_long: { label: "చాలా సమయం పట్టేది" },
+        forgot: { label: "మర్చిపోయేదాన్ని" },
+        invisible: { label: "ఫలితం కనిపించేది కాదు" },
+        no_idea: { label: "ఏమి తినాలో తెలియేది కాదు" },
+        stressful: { label: "ఒత్తిడిగా అనిపించేది" },
+        nobody: { label: "అడిగేందుకు ఎవరూ లేరు" },
+        creeping: { label: "నా బరువు మళ్లీ పెరుగుతూనే ఉండేది" },
+        not_enough: { label: "సరిపోనంత తినడం కష్టం" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["ఎప్పుడు నమోదు చేయడం కష్టమవుతుంది?"],
+          variants: { never: ["ఎప్పుడు నమోదు చేయడం కష్టమవుతుందని అనుకుంటున్నారు?"] },
+        },
+      },
+      options: {
+        workdays: { label: "బిజీగా ఉండే పని దినాలు" },
+        eating_out: { label: "బయట తినడం" },
+        cooking: { label: "ఇతరుల కోసం వంట చేయడం" },
+        snacks: { label: "స్నాక్స్ మరియు పానీయాలు" },
+        evenings: { label: "సాయంత్రాలు మరియు వారాంతాలు" },
       },
     },
     {
@@ -1177,7 +1459,7 @@ const TE: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["మీరు ఎక్కడ నివసిస్తున్నారు?"], placeholder: "వెతకండి" },
+        country: { lines: ["మీరు ఎక్కడ తింటారు?"], placeholder: "వెతకండి" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -1195,6 +1477,18 @@ const TE: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "మరెక్కడైనా" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["లక్ష్యంగా ఒక స్ట్రీక్‌ను ఎంచుకోండి"] },
+      },
+      options: {
+        "7": { label: "7 రోజులు" },
+        "14": { label: "14 రోజులు" },
+        "30": { label: "30 రోజులు" },
+        "50": { label: "50 రోజులు" },
       },
     },
   ],
@@ -1276,10 +1570,10 @@ const TA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["உங்களுக்காகவே உருவாக்கப்பட்ட திட்டம்", "உங்கள் குறிக்கோள், உங்கள் நாள், உங்கள் உணவுகள்"],
-    cta: "என் திட்டத்தை உருவாக்கு",
+    lines: ["புகைப்படத்துடன் கலோரிகளை எண்ணுங்கள்"],
+    cta: "தொடங்கு",
     signin: "எனக்கு ஏற்கெனவே கணக்கு உள்ளது",
   },
   screens: [
@@ -1319,7 +1613,7 @@ const TA: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["உங்கள் உயரம் என்ன?"],
+          lines: ["உயரம்"],
           placeholder: "உயரம் cm-இல்",
         },
       },
@@ -1328,7 +1622,7 @@ const TA: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["இன்று உங்கள் எடை என்ன?"],
+          lines: ["உங்கள் எடை"],
           placeholder: "எடை kg-இல்",
         },
       },
@@ -1370,28 +1664,51 @@ const TA: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["எது கடினமாக இருந்தது?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["முன்பு கலோரிகளை எண்ணியிருக்கிறீர்களா?"] } },
       options: {
-        consistency: { label: "தொடர்ச்சியின்மை" },
-        habits: { label: "ஆரோக்கியமற்ற உணவுப் பழக்கங்கள்" },
-        support: { label: "ஆதரவு இல்லாமை" },
-        busy: { label: "பரபரப்பான அட்டவணை" },
-        ideas: { label: "உணவு யோசனைகள் இல்லாமை" },
+        never: { label: "ஒருபோதும் இல்லை" },
+        stopped: { label: "முயற்சித்தேன், நிறுத்திவிட்டேன்" },
+        onoff: { label: "அவ்வப்போது" },
+        now: { label: "இப்போது எண்ணுகிறேன்" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["இலக்காக ஒரு ஸ்ட்ரீக்கைத் தேர்ந்தெடுங்கள்"] },
+        barriers: {
+          lines: ["உங்களை எது நிறுத்தியது?", "பொருந்துவனவற்றை எல்லாம் தேர்ந்தெடுங்கள்"],
+          variants: {
+            onoff: ["எது தடையாக இருந்தது?", "பொருந்துவனவற்றை எல்லாம் தேர்ந்தெடுங்கள்"],
+            now: ["எது இன்னும் எளிதாக இருக்க வேண்டும்?", "பொருந்துவனவற்றை எல்லாம் தேர்ந்தெடுங்கள்"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 நாட்கள்" },
-        "14": { label: "14 நாட்கள்" },
-        "30": { label: "30 நாட்கள்" },
-        "50": { label: "50 நாட்கள்" },
+        too_long: { label: "அதிக நேரம் எடுத்தது" },
+        forgot: { label: "மறந்துவிட்டேன்" },
+        invisible: { label: "அது வேலை செய்வது தெரியவில்லை" },
+        no_idea: { label: "என்ன சாப்பிடுவதென்று தெரியவில்லை" },
+        stressful: { label: "மன அழுத்தமாக இருந்தது" },
+        nobody: { label: "கேட்பதற்கு யாருமில்லை" },
+        creeping: { label: "என் எடை மீண்டும் ஏறிக்கொண்டே இருந்தது" },
+        not_enough: { label: "போதுமான அளவு சாப்பிடுவது கடினம்" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["எப்போது பதிவு செய்வது கடினம்?"],
+          variants: { never: ["எப்போது பதிவு செய்வது கடினமாக இருக்கும் என்று எதிர்பார்க்கிறீர்கள்?"] },
+        },
+      },
+      options: {
+        workdays: { label: "பிசியான வேலை நாட்கள்" },
+        eating_out: { label: "வெளியில் சாப்பிடுவது" },
+        cooking: { label: "மற்றவர்களுக்கு சமைப்பது" },
+        snacks: { label: "சிற்றுண்டிகளும் பானங்களும்" },
+        evenings: { label: "மாலைகளும் வார இறுதிகளும்" },
       },
     },
     {
@@ -1424,7 +1741,7 @@ const TA: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["நீங்கள் எங்கே வசிக்கிறீர்கள்?"], placeholder: "தேடு" },
+        country: { lines: ["நீங்கள் எங்கே சாப்பிடுகிறீர்கள்?"], placeholder: "தேடு" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -1442,6 +1759,18 @@ const TA: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "வேறு எங்காவது" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["இலக்காக ஒரு ஸ்ட்ரீக்கைத் தேர்ந்தெடுங்கள்"] },
+      },
+      options: {
+        "7": { label: "7 நாட்கள்" },
+        "14": { label: "14 நாட்கள்" },
+        "30": { label: "30 நாட்கள்" },
+        "50": { label: "50 நாட்கள்" },
       },
     },
   ],
@@ -1523,10 +1852,10 @@ const PA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["ਤੁਹਾਡੇ ਹਿਸਾਬ ਨਾਲ ਬਣਿਆ ਪਲਾਨ", "ਤੁਹਾਡਾ ਟੀਚਾ, ਤੁਹਾਡਾ ਦਿਨ, ਤੁਹਾਡੇ ਖਾਣੇ"],
-    cta: "ਮੇਰਾ ਪਲਾਨ ਬਣਾਓ",
+    lines: ["ਫੋਟੋ ਨਾਲ ਕੈਲੋਰੀ ਗਿਣੋ"],
+    cta: "ਸ਼ੁਰੂ ਕਰੋ",
     signin: "ਮੇਰਾ ਅਕਾਊਂਟ ਪਹਿਲਾਂ ਤੋਂ ਹੈ",
   },
   screens: [
@@ -1566,7 +1895,7 @@ const PA: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["ਤੁਹਾਡਾ ਕੱਦ ਕਿੰਨਾ ਹੈ?"],
+          lines: ["ਕੱਦ"],
           placeholder: "ਕੱਦ cm ਵਿੱਚ",
         },
       },
@@ -1575,7 +1904,7 @@ const PA: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["ਅੱਜ ਤੁਹਾਡਾ ਭਾਰ ਕਿੰਨਾ ਹੈ?"],
+          lines: ["ਤੁਹਾਡਾ ਵਜ਼ਨ"],
           placeholder: "ਭਾਰ kg ਵਿੱਚ",
         },
       },
@@ -1617,28 +1946,51 @@ const PA: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["ਕੀ ਔਖਾ ਰਿਹਾ ਹੈ?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["ਕੀ ਤੁਸੀਂ ਪਹਿਲਾਂ ਕਦੇ ਕੈਲੋਰੀ ਗਿਣੀਆਂ ਹਨ?"] } },
       options: {
-        consistency: { label: "ਲਗਾਤਾਰਤਾ ਦੀ ਕਮੀ" },
-        habits: { label: "ਖਾਣ ਦੀਆਂ ਗ਼ੈਰ-ਸਿਹਤਮੰਦ ਆਦਤਾਂ" },
-        support: { label: "ਸਪੋਰਟ ਦੀ ਕਮੀ" },
-        busy: { label: "ਰੁਝੇਵਿਆਂ ਭਰੀ ਰੁਟੀਨ" },
-        ideas: { label: "ਖਾਣੇ ਦੇ ਆਈਡੀਆ ਦੀ ਕਮੀ" },
+        never: { label: "ਕਦੇ ਨਹੀਂ" },
+        stopped: { label: "ਕੋਸ਼ਿਸ਼ ਕੀਤੀ, ਛੱਡ ਦਿੱਤੀ" },
+        onoff: { label: "ਕਦੇ ਕਦੇ" },
+        now: { label: "ਗਿਣਤੀ ਹੁਣ ਵੀ ਚੱਲ ਰਹੀ ਹੈ" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["ਕਿੰਨੀ ਲੰਬੀ ਸਟ੍ਰੀਕ ਦਾ ਟੀਚਾ ਰੱਖੀਏ?"] },
+        barriers: {
+          lines: ["ਕਿਸ ਚੀਜ਼ ਨੇ ਤੁਹਾਨੂੰ ਰੋਕਿਆ?", "ਲਾਗੂ ਹੋਣ ਵਾਲੇ ਸਾਰੇ ਚੁਣੋ"],
+          variants: {
+            onoff: ["ਕੀ ਰੁਕਾਵਟ ਬਣਿਆ?", "ਲਾਗੂ ਹੋਣ ਵਾਲੇ ਸਾਰੇ ਚੁਣੋ"],
+            now: ["ਕੀ ਹੋਰ ਆਸਾਨ ਹੋਵੇ?", "ਲਾਗੂ ਹੋਣ ਵਾਲੇ ਸਾਰੇ ਚੁਣੋ"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 ਦਿਨ" },
-        "14": { label: "14 ਦਿਨ" },
-        "30": { label: "30 ਦਿਨ" },
-        "50": { label: "50 ਦਿਨ" },
+        too_long: { label: "ਬਹੁਤ ਸਮਾਂ ਲੱਗਦਾ ਸੀ" },
+        forgot: { label: "ਭੁੱਲ ਜਾਣਾ ਆਮ ਸੀ" },
+        invisible: { label: "ਕੰਮ ਕਰਦਾ ਨਜ਼ਰ ਨਹੀਂ ਆਉਂਦਾ ਸੀ" },
+        no_idea: { label: "ਕੀ ਖਾਣਾ, ਪਤਾ ਨਹੀਂ ਸੀ" },
+        stressful: { label: "ਤਣਾਅ ਜਿਹਾ ਲੱਗਦਾ ਸੀ" },
+        nobody: { label: "ਪੁੱਛਣ ਲਈ ਕੋਈ ਨਹੀਂ ਸੀ" },
+        creeping: { label: "ਮੇਰਾ ਵਜ਼ਨ ਮੁੜ ਵੱਧਣ ਲੱਗਦਾ ਸੀ" },
+        not_enough: { label: "ਕਾਫ਼ੀ ਖਾਣਾ ਮੁਸ਼ਕਿਲ ਸੀ" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["ਦਰਜ ਕਰਨਾ ਕਦੋਂ ਸਭ ਤੋਂ ਔਖਾ ਹੈ?"],
+          variants: { never: ["ਕਦੋਂ ਦਰਜ ਕਰਨਾ ਸਭ ਤੋਂ ਔਖਾ ਹੋਵੇਗਾ?"] },
+        },
+      },
+      options: {
+        workdays: { label: "ਰੁੱਝੇ ਕੰਮ ਵਾਲੇ ਦਿਨ" },
+        eating_out: { label: "ਬਾਹਰ ਖਾਣਾ" },
+        cooking: { label: "ਦੂਜਿਆਂ ਲਈ ਖਾਣਾ ਬਣਾਉਣਾ" },
+        snacks: { label: "ਨਾਸ਼ਤੇ ਤੇ ਪੇਅ" },
+        evenings: { label: "ਸ਼ਾਮਾਂ ਅਤੇ ਵੀਕੈਂਡ" },
       },
     },
     {
@@ -1671,7 +2023,7 @@ const PA: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["ਤੁਹਾਡਾ ਦੇਸ਼ ਕਿਹੜਾ ਹੈ?"], placeholder: "ਖੋਜੋ" },
+        country: { lines: ["ਤੁਸੀਂ ਕਿੱਥੇ ਖਾਂਦੇ ਹੋ?"], placeholder: "ਖੋਜੋ" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -1689,6 +2041,18 @@ const PA: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "ਕਿਤੇ ਹੋਰ" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["ਕਿੰਨੀ ਲੰਬੀ ਸਟ੍ਰੀਕ ਦਾ ਟੀਚਾ ਰੱਖੀਏ?"] },
+      },
+      options: {
+        "7": { label: "7 ਦਿਨ" },
+        "14": { label: "14 ਦਿਨ" },
+        "30": { label: "30 ਦਿਨ" },
+        "50": { label: "50 ਦਿਨ" },
       },
     },
   ],
@@ -1770,10 +2134,10 @@ const OR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["ଆପଣଙ୍କ ପାଇଁ ତିଆରି ଏକ ପ୍ଲାନ୍", "ଆପଣଙ୍କ ଲକ୍ଷ୍ୟ, ଆପଣଙ୍କ ଦିନ, ଆପଣଙ୍କ ଭୋଜନ"],
-    cta: "ମୋ ପ୍ଲାନ୍ ତିଆରି କରନ୍ତୁ",
+    lines: ["ଫଟୋରେ କ୍ୟାଲୋରୀ ଗଣନ୍ତୁ"],
+    cta: "ଆରମ୍ଭ କରନ୍ତୁ",
     signin: "ମୋର ପୂର୍ବରୁ ଆକାଉଣ୍ଟ ଅଛି",
   },
   screens: [
@@ -1813,7 +2177,7 @@ const OR: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["ଆପଣଙ୍କ ଉଚ୍ଚତା କେତେ?"],
+          lines: ["ଉଚ୍ଚତା"],
           placeholder: "cm ରେ ଉଚ୍ଚତା",
         },
       },
@@ -1822,7 +2186,7 @@ const OR: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["ଆଜି ଆପଣଙ୍କ ଓଜନ କେତେ?"],
+          lines: ["ଆପଣଙ୍କ ଓଜନ"],
           placeholder: "kg ରେ ଓଜନ",
         },
       },
@@ -1864,28 +2228,51 @@ const OR: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["କ'ଣ କଷ୍ଟକର ଲାଗିଛି?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["ପୂର୍ବରୁ କ୍ୟାଲୋରୀ ଗଣିଛନ୍ତି କି?"] } },
       options: {
-        consistency: { label: "ନିୟମିତତାର ଅଭାବ" },
-        habits: { label: "ଅସୁସ୍ଥ ଖାଦ୍ୟ ଅଭ୍ୟାସ" },
-        support: { label: "ସହଯୋଗର ଅଭାବ" },
-        busy: { label: "ବ୍ୟସ୍ତ ଦିନଚର୍ଯ୍ୟା" },
-        ideas: { label: "ଭୋଜନ ଆଇଡିଆର ଅଭାବ" },
+        never: { label: "କେବେ ନାହିଁ" },
+        stopped: { label: "ଚେଷ୍ଟା କରିଥିଲି, ଛାଡ଼ିଥିଲି" },
+        onoff: { label: "ବେଳେବେଳେ" },
+        now: { label: "ବର୍ତ୍ତମାନ ଗଣୁଛି" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["ଲକ୍ଷ୍ୟ ପାଇଁ ଏକ ଷ୍ଟ୍ରିକ୍ ବାଛନ୍ତୁ"] },
+        barriers: {
+          lines: ["କ'ଣ ଆପଣଙ୍କୁ ଅଟକାଇଥିଲା?", "ଯାହା ମେଳ ଖାଏ ସବୁ ବାଛନ୍ତୁ"],
+          variants: {
+            onoff: ["କ'ଣ ବାଧା ସୃଷ୍ଟି କରିଥିଲା?", "ଯାହା ମେଳ ଖାଏ ସବୁ ବାଛନ୍ତୁ"],
+            now: ["କ'ଣ ସହଜ ହେଲେ ଭଲ ହୋଇଥାନ୍ତା?", "ଯାହା ମେଳ ଖାଏ ସବୁ ବାଛନ୍ତୁ"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 ଦିନ" },
-        "14": { label: "14 ଦିନ" },
-        "30": { label: "30 ଦିନ" },
-        "50": { label: "50 ଦିନ" },
+        too_long: { label: "ବହୁତ ସମୟ ନେଉଥିଲା" },
+        forgot: { label: "ଭୁଲି ଯାଉଥିଲି" },
+        invisible: { label: "ଫଳାଫଳ ଦେଖାଯାଉ ନଥିଲା" },
+        no_idea: { label: "କ'ଣ ଖାଇବି ଜଣା ନଥିଲା" },
+        stressful: { label: "ଚାପଯୁକ୍ତ ଲାଗୁଥିଲା" },
+        nobody: { label: "ପଚାରିବାକୁ କେହି ନଥିଲେ" },
+        creeping: { label: "ମୋ ଓଜନ ପୁଣି ବଢ଼ି ଚାଲିଥିଲା" },
+        not_enough: { label: "ଯଥେଷ୍ଟ ଖାଇବା କଷ୍ଟ ଥିଲା" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["କେବେ ଲିଖିବା ସବୁଠାରୁ କଷ୍ଟ ହୁଏ?"],
+          variants: { never: ["କେବେ ଲିଖିବା ସବୁଠାରୁ କଷ୍ଟ ହେବ ବୋଲି ଭାବୁଛନ୍ତି?"] },
+        },
+      },
+      options: {
+        workdays: { label: "ବ୍ୟସ୍ତ କାର୍ଯ୍ୟଦିବସ" },
+        eating_out: { label: "ବାହାରେ ଖାଇବା" },
+        cooking: { label: "ଅନ୍ୟମାନଙ୍କ ପାଇଁ ରାନ୍ଧିବା" },
+        snacks: { label: "ଜଳଖିଆ ଓ ପାନୀୟ" },
+        evenings: { label: "ସନ୍ଧ୍ୟା ଓ ସପ୍ତାହାନ୍ତ" },
       },
     },
     {
@@ -1918,7 +2305,7 @@ const OR: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["ଆପଣ କେଉଁଠି ରୁହନ୍ତି?"], placeholder: "ଖୋଜନ୍ତୁ" },
+        country: { lines: ["ଆପଣ କେଉଁଠାରେ ଖାଆନ୍ତି?"], placeholder: "ଖୋଜନ୍ତୁ" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -1936,6 +2323,18 @@ const OR: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "ଅନ୍ୟ କେଉଁଠି" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["ଲକ୍ଷ୍ୟ ପାଇଁ ଏକ ଷ୍ଟ୍ରିକ୍ ବାଛନ୍ତୁ"] },
+      },
+      options: {
+        "7": { label: "7 ଦିନ" },
+        "14": { label: "14 ଦିନ" },
+        "30": { label: "30 ଦିନ" },
+        "50": { label: "50 ଦିନ" },
       },
     },
   ],
@@ -2017,10 +2416,10 @@ const MR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["तुमच्यासाठी बनवलेला प्लॅन", "तुमचे ध्येय, तुमचा दिवस, तुमची जेवणे"],
-    cta: "माझा प्लॅन बनवा",
+    lines: ["फोटोने कॅलरी मोजा"],
+    cta: "सुरू करा",
     signin: "माझे अकाउंट आधीच आहे",
   },
   screens: [
@@ -2060,7 +2459,7 @@ const MR: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["तुमची उंची किती आहे?"],
+          lines: ["उंची"],
           placeholder: "उंची cm मध्ये",
         },
       },
@@ -2069,7 +2468,7 @@ const MR: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["आज तुमचे वजन किती आहे?"],
+          lines: ["तुमचे वजन"],
           placeholder: "वजन kg मध्ये",
         },
       },
@@ -2111,28 +2510,51 @@ const MR: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["काय कठीण गेले आहे?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["यापूर्वी कॅलरी मोजल्या आहेत का?"] } },
       options: {
-        consistency: { label: "सातत्याचा अभाव" },
-        habits: { label: "खाण्याच्या अनारोग्यदायी सवयी" },
-        support: { label: "पाठिंब्याचा अभाव" },
-        busy: { label: "व्यस्त दिनक्रम" },
-        ideas: { label: "जेवणाच्या कल्पनांचा अभाव" },
+        never: { label: "कधीच नाही" },
+        stopped: { label: "प्रयत्न केला, सोडून दिला" },
+        onoff: { label: "कधी कधी" },
+        now: { label: "आत्ताही मोजत आहे" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["कोणत्या स्ट्रीकचे लक्ष्य ठेवायचे ते निवडा"] },
+        barriers: {
+          lines: ["कशामुळे थांबलात?", "लागू असलेले सर्व निवडा"],
+          variants: {
+            onoff: ["काय अडथळा आला?", "लागू असलेले सर्व निवडा"],
+            now: ["काय अजून सोपं हवं?", "लागू असलेले सर्व निवडा"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 दिवस" },
-        "14": { label: "14 दिवस" },
-        "30": { label: "30 दिवस" },
-        "50": { label: "50 दिवस" },
+        too_long: { label: "खूप वेळ लागत होता" },
+        forgot: { label: "लक्षात राहत नव्हतं" },
+        invisible: { label: "परिणाम दिसत नव्हता" },
+        no_idea: { label: "काय जेवावं कळत नव्हतं" },
+        stressful: { label: "तणावपूर्ण वाटत होतं" },
+        nobody: { label: "विचारायला कोणी नव्हतं" },
+        creeping: { label: "वजन पुन्हा हळूहळू वाढत होतं" },
+        not_enough: { label: "पुरेसं जेवणं कठीण होतं" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["कधी नोंदवणं सगळ्यात अवघड?"],
+          variants: { never: ["नोंदवणं कधी सगळ्यात अवघड जाईल असं वाटतं?"] },
+        },
+      },
+      options: {
+        workdays: { label: "व्यस्त कामाचे दिवस" },
+        eating_out: { label: "बाहेर जेवणं" },
+        cooking: { label: "इतरांसाठी स्वयंपाक" },
+        snacks: { label: "स्नॅक्स आणि पेये" },
+        evenings: { label: "संध्याकाळ आणि सुट्टीचे दिवस" },
       },
     },
     {
@@ -2165,7 +2587,7 @@ const MR: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["तुम्ही कुठे राहता?"], placeholder: "शोधा" },
+        country: { lines: ["तुम्ही कुठे जेवता?"], placeholder: "शोधा" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -2183,6 +2605,18 @@ const MR: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "इतर कुठेतरी" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["कोणत्या स्ट्रीकचे लक्ष्य ठेवायचे ते निवडा"] },
+      },
+      options: {
+        "7": { label: "7 दिवस" },
+        "14": { label: "14 दिवस" },
+        "30": { label: "30 दिवस" },
+        "50": { label: "50 दिवस" },
       },
     },
   ],
@@ -2264,10 +2698,10 @@ const ML: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["നിങ്ങൾക്കായി തയ്യാറാക്കിയ ഒരു പ്ലാൻ", "നിങ്ങളുടെ ലക്ഷ്യം, നിങ്ങളുടെ ദിവസം, നിങ്ങളുടെ ഭക്ഷണം"],
-    cta: "എന്റെ പ്ലാൻ തയ്യാറാക്കൂ",
+    lines: ["ഫോട്ടോയിലൂടെ കലോറി കണക്കാക്കൂ"],
+    cta: "തുടങ്ങുക",
     signin: "എനിക്ക് ഇതിനകം ഒരു അക്കൗണ്ട് ഉണ്ട്",
   },
   screens: [
@@ -2307,7 +2741,7 @@ const ML: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["നിങ്ങളുടെ ഉയരം എത്ര?"],
+          lines: ["ഉയരം"],
           placeholder: "ഉയരം cm-ൽ",
         },
       },
@@ -2316,7 +2750,7 @@ const ML: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["ഇന്ന് നിങ്ങളുടെ ഭാരം എത്ര?"],
+          lines: ["നിങ്ങളുടെ ഭാരം"],
           placeholder: "ഭാരം kg-ൽ",
         },
       },
@@ -2358,28 +2792,51 @@ const ML: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["എന്താണ് ബുദ്ധിമുട്ടായിരുന്നത്?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["മുമ്പ് കലോറി കണക്കാക്കിയിട്ടുണ്ടോ?"] } },
       options: {
-        consistency: { label: "സ്ഥിരതയില്ലായ്മ" },
-        habits: { label: "അനാരോഗ്യകരമായ ഭക്ഷണശീലങ്ങൾ" },
-        support: { label: "പിന്തുണയില്ലായ്മ" },
-        busy: { label: "തിരക്കേറിയ ദിനചര്യ" },
-        ideas: { label: "ഭക്ഷണ ആശയങ്ങളുടെ കുറവ്" },
+        never: { label: "ഒരിക്കലുമില്ല" },
+        stopped: { label: "ശ്രമിച്ചു, പിന്നെ നിർത്തി" },
+        onoff: { label: "ഇടയ്ക്കിടെ" },
+        now: { label: "ഇപ്പോൾ കണക്കാക്കുന്നു" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["ലക്ഷ്യമിടാൻ ഒരു സ്ട്രീക്ക് തിരഞ്ഞെടുക്കൂ"] },
+        barriers: {
+          lines: ["എന്താണ് നിങ്ങളെ നിർത്തിയത്?", "ചേരുന്നവയെല്ലാം തിരഞ്ഞെടുക്കുക"],
+          variants: {
+            onoff: ["എന്താണ് തടസ്സമായത്?", "ചേരുന്നവയെല്ലാം തിരഞ്ഞെടുക്കുക"],
+            now: ["എന്താണ് കൂടുതൽ എളുപ്പമാകേണ്ടത്?", "ചേരുന്നവയെല്ലാം തിരഞ്ഞെടുക്കുക"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 ദിവസം" },
-        "14": { label: "14 ദിവസം" },
-        "30": { label: "30 ദിവസം" },
-        "50": { label: "50 ദിവസം" },
+        too_long: { label: "ധാരാളം സമയം എടുത്തു" },
+        forgot: { label: "മറന്നുപോയി" },
+        invisible: { label: "ഇത് പ്രവർത്തിക്കുന്നത് കാണാൻ കഴിഞ്ഞില്ല" },
+        no_idea: { label: "എന്ത് കഴിക്കണമെന്ന് അറിയില്ലായിരുന്നു" },
+        stressful: { label: "സമ്മർദ്ദമായി തോന്നി" },
+        nobody: { label: "ചോദിക്കാൻ ആരുമില്ലായിരുന്നു" },
+        creeping: { label: "ഭാരം വീണ്ടും കൂടിത്തുടങ്ങി" },
+        not_enough: { label: "മതിയായത്ര കഴിക്കാൻ ബുദ്ധിമുട്ടായിരുന്നു" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["എപ്പോഴാണ് രേഖപ്പെടുത്തൽ ഏറ്റവും ബുദ്ധിമുട്ട്?"],
+          variants: { never: ["എപ്പോഴാണ് രേഖപ്പെടുത്തൽ ഏറ്റവും ബുദ്ധിമുട്ടാകുമെന്ന് കരുതുന്നു?"] },
+        },
+      },
+      options: {
+        workdays: { label: "തിരക്കുള്ള ജോലിദിവസങ്ങൾ" },
+        eating_out: { label: "പുറത്ത് ഭക്ഷണം" },
+        cooking: { label: "മറ്റുള്ളവർക്കായി പാചകം" },
+        snacks: { label: "ലഘുഭക്ഷണവും പാനീയങ്ങളും" },
+        evenings: { label: "വൈകുന്നേരങ്ങളും അവധിദിവസങ്ങളും" },
       },
     },
     {
@@ -2412,7 +2869,7 @@ const ML: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["നിങ്ങൾ എവിടെയാണ് താമസിക്കുന്നത്?"], placeholder: "തിരയുക" },
+        country: { lines: ["നിങ്ങൾ എവിടെയാണ് ഭക്ഷണം കഴിക്കുന്നത്?"], placeholder: "തിരയുക" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -2430,6 +2887,18 @@ const ML: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "മറ്റെവിടെയെങ്കിലും" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["ലക്ഷ്യമിടാൻ ഒരു സ്ട്രീക്ക് തിരഞ്ഞെടുക്കൂ"] },
+      },
+      options: {
+        "7": { label: "7 ദിവസം" },
+        "14": { label: "14 ദിവസം" },
+        "30": { label: "30 ദിവസം" },
+        "50": { label: "50 ദിവസം" },
       },
     },
   ],
@@ -2511,10 +2980,10 @@ const KN: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["ನಿಮಗಾಗಿ ರೂಪಿಸಿದ ಪ್ಲಾನ್", "ನಿಮ್ಮ ಗುರಿ, ನಿಮ್ಮ ದಿನ, ನಿಮ್ಮ ಊಟಗಳು"],
-    cta: "ನನ್ನ ಪ್ಲಾನ್ ರೂಪಿಸಿ",
+    lines: ["ಫೋಟೋದಿಂದ ಕ್ಯಾಲೊರಿಗಳನ್ನು ಲೆಕ್ಕ ಹಾಕಿ"],
+    cta: "ಪ್ರಾರಂಭಿಸಿ",
     signin: "ನನಗೆ ಈಗಾಗಲೇ ಖಾತೆ ಇದೆ",
   },
   screens: [
@@ -2554,7 +3023,7 @@ const KN: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["ನಿಮ್ಮ ಎತ್ತರ ಎಷ್ಟು?"],
+          lines: ["ಎತ್ತರ"],
           placeholder: "ಎತ್ತರ cm ನಲ್ಲಿ",
         },
       },
@@ -2563,7 +3032,7 @@ const KN: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["ಇಂದು ನಿಮ್ಮ ತೂಕ ಎಷ್ಟು?"],
+          lines: ["ನಿಮ್ಮ ತೂಕ"],
           placeholder: "ತೂಕ kg ನಲ್ಲಿ",
         },
       },
@@ -2605,28 +3074,51 @@ const KN: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["ಏನು ಕಷ್ಟವಾಗಿದೆ?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["ಮೊದಲು ಕ್ಯಾಲೊರಿಗಳನ್ನು ಎಣಿಸಿದ್ದೀರಾ?"] } },
       options: {
-        consistency: { label: "ನಿರಂತರತೆಯ ಕೊರತೆ" },
-        habits: { label: "ಅನಾರೋಗ್ಯಕರ ಆಹಾರ ಅಭ್ಯಾಸಗಳು" },
-        support: { label: "ಬೆಂಬಲದ ಕೊರತೆ" },
-        busy: { label: "ಬಿಡುವಿಲ್ಲದ ದಿನಚರಿ" },
-        ideas: { label: "ಊಟದ ಐಡಿಯಾಗಳ ಕೊರತೆ" },
+        never: { label: "ಎಂದಿಗೂ ಇಲ್ಲ" },
+        stopped: { label: "ಪ್ರಯತ್ನಿಸಿದೆ, ನಿಲ್ಲಿಸಿದೆ" },
+        onoff: { label: "ಆಗಿಂದಾಗಿ" },
+        now: { label: "ಈಗ ಎಣಿಸುತ್ತಿದ್ದೇನೆ" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["ಗುರಿಯಾಗಿ ಒಂದು ಸ್ಟ್ರೀಕ್ ಆಯ್ಕೆಮಾಡಿ"] },
+        barriers: {
+          lines: ["ನಿಮ್ಮನ್ನು ಏನು ನಿಲ್ಲಿಸಿತು?", "ಹೊಂದುವವುಗಳನ್ನೆಲ್ಲಾ ಆಯ್ಕೆಮಾಡಿ"],
+          variants: {
+            onoff: ["ಏನು ಅಡ್ಡ ಬಂತು?", "ಹೊಂದುವವುಗಳನ್ನೆಲ್ಲಾ ಆಯ್ಕೆಮಾಡಿ"],
+            now: ["ಏನು ಇನ್ನಷ್ಟು ಸುಲಭವಾಗಬೇಕು?", "ಹೊಂದುವವುಗಳನ್ನೆಲ್ಲಾ ಆಯ್ಕೆಮಾಡಿ"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 ದಿನಗಳು" },
-        "14": { label: "14 ದಿನಗಳು" },
-        "30": { label: "30 ದಿನಗಳು" },
-        "50": { label: "50 ದಿನಗಳು" },
+        too_long: { label: "ಬಹಳ ಸಮಯ ತೆಗೆದುಕೊಳ್ಳುತ್ತಿತ್ತು" },
+        forgot: { label: "ಮರೆತುಹೋಗುತ್ತಿದ್ದೆ" },
+        invisible: { label: "ಫಲಿತಾಂಶ ಕಂಡುಬರಲಿಲ್ಲ" },
+        no_idea: { label: "ಏನು ತಿನ್ನಬೇಕೆಂದು ತಿಳಿದಿರಲಿಲ್ಲ" },
+        stressful: { label: "ಒತ್ತಡವಾಗಿ ಅನ್ನಿಸುತ್ತಿತ್ತು" },
+        nobody: { label: "ಕೇಳಲು ಯಾರೂ ಇರಲಿಲ್ಲ" },
+        creeping: { label: "ನನ್ನ ತೂಕ ಮತ್ತೆ ಏರಿಕೆಯಾಗುತ್ತಿತ್ತು" },
+        not_enough: { label: "ಸಾಕಷ್ಟು ತಿನ್ನುವುದು ಕಷ್ಟವಾಗಿತ್ತು" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["ಯಾವಾಗ ದಾಖಲಿಸುವುದು ಅತಿ ಕಷ್ಟ?"],
+          variants: { never: ["ಯಾವಾಗ ದಾಖಲಿಸುವುದು ಅತಿ ಕಷ್ಟ ಎಂದು ಭಾವಿಸುತ್ತೀರಿ?"] },
+        },
+      },
+      options: {
+        workdays: { label: "ಬಿಝಿ ಕೆಲಸದ ದಿನಗಳು" },
+        eating_out: { label: "ಹೊರಗೆ ಊಟ" },
+        cooking: { label: "ಇತರರಿಗಾಗಿ ಅಡುಗೆ" },
+        snacks: { label: "ತಿಂಡಿಗಳು ಮತ್ತು ಪಾನೀಯಗಳು" },
+        evenings: { label: "ಸಂಜೆಗಳು ಮತ್ತು ವಾರಾಂತ್ಯಗಳು" },
       },
     },
     {
@@ -2659,7 +3151,7 @@ const KN: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["ನೀವು ಎಲ್ಲಿ ವಾಸಿಸುತ್ತೀರಿ?"], placeholder: "ಹುಡುಕಿ" },
+        country: { lines: ["ನೀವು ಎಲ್ಲಿ ಊಟ ಮಾಡುತ್ತೀರಿ?"], placeholder: "ಹುಡುಕಿ" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -2677,6 +3169,18 @@ const KN: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "ಬೇರೆಡೆ" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["ಗುರಿಯಾಗಿ ಒಂದು ಸ್ಟ್ರೀಕ್ ಆಯ್ಕೆಮಾಡಿ"] },
+      },
+      options: {
+        "7": { label: "7 ದಿನಗಳು" },
+        "14": { label: "14 ದಿನಗಳು" },
+        "30": { label: "30 ದಿನಗಳು" },
+        "50": { label: "50 ದಿನಗಳು" },
       },
     },
   ],
@@ -2758,10 +3262,10 @@ const GU: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["તમારા માટે બનાવેલો પ્લાન", "તમારું ધ્યેય, તમારો દિવસ, તમારાં ભોજન"],
-    cta: "મારો પ્લાન બનાવો",
+    lines: ["ફોટોથી કેલરી ગણો"],
+    cta: "શરૂ કરો",
     signin: "મારું એકાઉન્ટ પહેલેથી છે",
   },
   screens: [
@@ -2801,7 +3305,7 @@ const GU: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["તમારી ઊંચાઈ કેટલી છે?"],
+          lines: ["ઊંચાઈ"],
           placeholder: "ઊંચાઈ cm માં",
         },
       },
@@ -2810,7 +3314,7 @@ const GU: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["આજે તમારું વજન કેટલું છે?"],
+          lines: ["તમારું વજન"],
           placeholder: "વજન kg માં",
         },
       },
@@ -2852,28 +3356,51 @@ const GU: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["શું મુશ્કેલ રહ્યું છે?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["પહેલાં ક્યારેય કેલરી ગણી છે?"] } },
       options: {
-        consistency: { label: "નિયમિતતાનો અભાવ" },
-        habits: { label: "ખાવાની બિનઆરોગ્યપ્રદ ટેવો" },
-        support: { label: "સપોર્ટનો અભાવ" },
-        busy: { label: "વ્યસ્ત દિનચર્યા" },
-        ideas: { label: "ભોજનના આઇડિયાનો અભાવ" },
+        never: { label: "ક્યારેય નહીં" },
+        stopped: { label: "ટ્રાય કરી, પછી છોડી દીધી" },
+        onoff: { label: "ક્યારેક ક્યારેક" },
+        now: { label: "હવે ગણું છું" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["સ્ટ્રીકનું લક્ષ્ય પસંદ કરો"] },
+        barriers: {
+          lines: ["શેનાથી તમે અટક્યા?", "લાગુ પડતું બધું પસંદ કરો"],
+          variants: {
+            onoff: ["શું અડચણ આવી?", "લાગુ પડતું બધું પસંદ કરો"],
+            now: ["શું વધુ સરળ હોવું જોઈએ?", "લાગુ પડતું બધું પસંદ કરો"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 દિવસ" },
-        "14": { label: "14 દિવસ" },
-        "30": { label: "30 દિવસ" },
-        "50": { label: "50 દિવસ" },
+        too_long: { label: "બહુ સમય લેતું હતું" },
+        forgot: { label: "યાદ નહોતું રહેતું" },
+        invisible: { label: "પરિણામ દેખાતું નહોતું" },
+        no_idea: { label: "શું ખાવું એ ખ્યાલ નહોતો" },
+        stressful: { label: "તણાવભર્યું લાગતું હતું" },
+        nobody: { label: "પૂછવા કોઈ નહોતું" },
+        creeping: { label: "મારું વજન ફરી વધતું હતું" },
+        not_enough: { label: "પૂરતું ખાવું મુશ્કેલ હતું" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["નોંધવું ક્યારે સૌથી અઘરું?"],
+          variants: { never: ["નોંધવું ક્યારે સૌથી અઘરું થશે એમ લાગે છે?"] },
+        },
+      },
+      options: {
+        workdays: { label: "વ્યસ્ત કામકાજના દિવસો" },
+        eating_out: { label: "બહાર જમવું" },
+        cooking: { label: "બીજા માટે રસોઈ" },
+        snacks: { label: "નાસ્તા અને પીણાં" },
+        evenings: { label: "સાંજો અને વીકેન્ડ" },
       },
     },
     {
@@ -2906,7 +3433,7 @@ const GU: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["તમે ક્યાં રહો છો?"], placeholder: "શોધો" },
+        country: { lines: ["તમે ક્યાં જમો છો?"], placeholder: "શોધો" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -2924,6 +3451,18 @@ const GU: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "બીજે ક્યાંક" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["સ્ટ્રીકનું લક્ષ્ય પસંદ કરો"] },
+      },
+      options: {
+        "7": { label: "7 દિવસ" },
+        "14": { label: "14 દિવસ" },
+        "30": { label: "30 દિવસ" },
+        "50": { label: "50 દિવસ" },
       },
     },
   ],
@@ -3005,10 +3544,10 @@ const BN: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["আপনাকে ঘিরে তৈরি একটি প্ল্যান", "আপনার লক্ষ্য, আপনার দিন, আপনার খাবার"],
-    cta: "আমার প্ল্যান তৈরি করুন",
+    lines: ["ছবি দিয়ে ক্যালরি গুনুন"],
+    cta: "শুরু করুন",
     signin: "আমার আগে থেকেই অ্যাকাউন্ট আছে",
   },
   screens: [
@@ -3048,7 +3587,7 @@ const BN: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["আপনার উচ্চতা কত?"],
+          lines: ["উচ্চতা"],
           placeholder: "উচ্চতা (cm)",
         },
       },
@@ -3057,7 +3596,7 @@ const BN: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["আজ আপনার ওজন কত?"],
+          lines: ["আপনার ওজন"],
           placeholder: "ওজন (kg)",
         },
       },
@@ -3099,28 +3638,51 @@ const BN: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["কোনটা কঠিন লেগেছে?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["আগে কি ক্যালরি গুনেছেন?"] } },
       options: {
-        consistency: { label: "ধারাবাহিকতার অভাব" },
-        habits: { label: "অস্বাস্থ্যকর খাদ্যাভ্যাস" },
-        support: { label: "সহায়তার অভাব" },
-        busy: { label: "ব্যস্ত সময়সূচি" },
-        ideas: { label: "খাবারের আইডিয়ার অভাব" },
+        never: { label: "কখনো না" },
+        stopped: { label: "চেষ্টা করেছিলাম, ছেড়ে দিয়েছি" },
+        onoff: { label: "মাঝে মাঝে" },
+        now: { label: "এখন গুনছি" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["কত দিনের স্ট্রিক লক্ষ্য রাখবেন, বেছে নিন"] },
+        barriers: {
+          lines: ["কী আপনাকে থামিয়েছিল?", "যা যা মানায় সব বেছে নিন"],
+          variants: {
+            onoff: ["কী বাধা হয়েছিল?", "যা যা মানায় সব বেছে নিন"],
+            now: ["কী সহজ হলে ভালো হতো?", "যা যা মানায় সব বেছে নিন"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 দিন" },
-        "14": { label: "14 দিন" },
-        "30": { label: "30 দিন" },
-        "50": { label: "50 দিন" },
+        too_long: { label: "বেশি সময় লাগত" },
+        forgot: { label: "ভুলে যেতাম" },
+        invisible: { label: "ফলাফল দেখা যেত না" },
+        no_idea: { label: "কী খাব জানতাম না" },
+        stressful: { label: "চাপের লাগত" },
+        nobody: { label: "জিজ্ঞেস করার মতো কেউ ছিল না" },
+        creeping: { label: "আমার ওজন আবার বেড়ে যেত" },
+        not_enough: { label: "যথেষ্ট খাওয়া কঠিন ছিল" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["কখন লিখে রাখা সবচেয়ে কঠিন?"],
+          variants: { never: ["কখন লিখে রাখা সবচেয়ে কঠিন হবে বলে মনে করেন?"] },
+        },
+      },
+      options: {
+        workdays: { label: "ব্যস্ত কর্মদিবস" },
+        eating_out: { label: "বাইরে খাওয়া" },
+        cooking: { label: "অন্যদের জন্য রান্না" },
+        snacks: { label: "স্ন্যাকস আর পানীয়" },
+        evenings: { label: "সন্ধ্যে আর ছুটির দিন" },
       },
     },
     {
@@ -3153,7 +3715,7 @@ const BN: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["আপনি কোথায় থাকেন?"], placeholder: "খুঁজুন" },
+        country: { lines: ["আপনি কোথায় খান?"], placeholder: "খুঁজুন" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -3171,6 +3733,18 @@ const BN: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "অন্য কোথাও" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["কত দিনের স্ট্রিক লক্ষ্য রাখবেন, বেছে নিন"] },
+      },
+      options: {
+        "7": { label: "7 দিন" },
+        "14": { label: "14 দিন" },
+        "30": { label: "30 দিন" },
+        "50": { label: "50 দিন" },
       },
     },
   ],
@@ -3252,10 +3826,10 @@ const PT_PT: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Um plano feito à tua medida", "O teu objetivo, o teu dia, as tuas refeições"],
-    cta: "Criar o meu plano",
+    lines: ["Conta calorias com uma foto"],
+    cta: "Começar",
     signin: "Já tenho uma conta",
   },
   screens: [
@@ -3295,7 +3869,7 @@ const PT_PT: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Qual é a tua altura?"],
+          lines: ["Altura"],
           placeholder: "Altura em cm",
         },
       },
@@ -3304,7 +3878,7 @@ const PT_PT: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Quanto pesas hoje?"],
+          lines: ["O teu peso"],
           placeholder: "Peso em kg",
         },
       },
@@ -3346,28 +3920,51 @@ const PT_PT: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["O que tem sido difícil?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Já contaste calorias?"] } },
       options: {
-        consistency: { label: "Falta de constância" },
-        habits: { label: "Hábitos alimentares pouco saudáveis" },
-        support: { label: "Falta de apoio" },
-        busy: { label: "Agenda cheia" },
-        ideas: { label: "Falta de ideias para refeições" },
+        never: { label: "Nunca" },
+        stopped: { label: "Tentei, desisti" },
+        onoff: { label: "De vez em quando" },
+        now: { label: "Conto agora" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Escolhe uma sequência como objetivo"] },
+        barriers: {
+          lines: ["O que te fez parar?", "Escolhe tudo o que se aplica"],
+          variants: {
+            onoff: ["O que se meteu no caminho?", "Escolhe tudo o que se aplica"],
+            now: ["O que gostarias que fosse mais fácil?", "Escolhe tudo o que se aplica"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dias" },
-        "14": { label: "14 dias" },
-        "30": { label: "30 dias" },
-        "50": { label: "50 dias" },
+        too_long: { label: "Demorava demasiado" },
+        forgot: { label: "Esquecia-me" },
+        invisible: { label: "Não via resultados" },
+        no_idea: { label: "Não sabia o que comer" },
+        stressful: { label: "Era stressante" },
+        nobody: { label: "Ninguém a quem perguntar" },
+        creeping: { label: "O meu peso voltava a subir" },
+        not_enough: { label: "Difícil comer o suficiente" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Quando é mais difícil registar?"],
+          variants: { never: ["Quando achas que registar vai ser mais difícil?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Dias de trabalho cheios" },
+        eating_out: { label: "Comer fora" },
+        cooking: { label: "Cozinhar para outros" },
+        snacks: { label: "Snacks e bebidas" },
+        evenings: { label: "Serões e fins de semana" },
       },
     },
     {
@@ -3400,7 +3997,7 @@ const PT_PT: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Onde vives?"], placeholder: "Pesquisar" },
+        country: { lines: ["Onde comes?"], placeholder: "Pesquisar" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -3418,6 +4015,18 @@ const PT_PT: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Outro lugar" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Escolhe uma sequência como objetivo"] },
+      },
+      options: {
+        "7": { label: "7 dias" },
+        "14": { label: "14 dias" },
+        "30": { label: "30 dias" },
+        "50": { label: "50 dias" },
       },
     },
   ],
@@ -3499,10 +4108,10 @@ const MS: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Pelan yang dibina untuk anda", "Matlamat anda, hari anda, hidangan anda"],
-    cta: "Bina pelan saya",
+    lines: ["Kira kalori dengan gambar"],
+    cta: "Mula",
     signin: "Saya sudah ada akaun",
   },
   screens: [
@@ -3542,7 +4151,7 @@ const MS: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Berapa tinggi anda?"],
+          lines: ["Ketinggian"],
           placeholder: "Tinggi dalam cm",
         },
       },
@@ -3551,7 +4160,7 @@ const MS: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Berapa berat anda hari ini?"],
+          lines: ["Berat badan anda"],
           placeholder: "Berat dalam kg",
         },
       },
@@ -3593,28 +4202,51 @@ const MS: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Apa yang sukar selama ini?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Pernahkah anda mengira kalori?"] } },
       options: {
-        consistency: { label: "Kurang konsisten" },
-        habits: { label: "Tabiat makan tidak sihat" },
-        support: { label: "Kurang sokongan" },
-        busy: { label: "Jadual sibuk" },
-        ideas: { label: "Kurang idea hidangan" },
+        never: { label: "Tidak pernah" },
+        stopped: { label: "Cuba, kemudian berhenti" },
+        onoff: { label: "Kadang-kadang" },
+        now: { label: "Saya masih mengira" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Pilih rentetan yang anda sasarkan"] },
+        barriers: {
+          lines: ["Apa yang membuatkan anda berhenti?", "Pilih semua yang sesuai"],
+          variants: {
+            onoff: ["Apa yang menghalang anda?", "Pilih semua yang sesuai"],
+            now: ["Apa yang anda ingin permudahkan?", "Pilih semua yang sesuai"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 hari" },
-        "14": { label: "14 hari" },
-        "30": { label: "30 hari" },
-        "50": { label: "50 hari" },
+        too_long: { label: "Mengambil masa terlalu lama" },
+        forgot: { label: "Saya terlupa" },
+        invisible: { label: "Tiada hasil yang kelihatan" },
+        no_idea: { label: "Tidak tahu mahu makan apa" },
+        stressful: { label: "Terasa stres" },
+        nobody: { label: "Tiada siapa untuk ditanya" },
+        creeping: { label: "Berat badan saya kembali naik" },
+        not_enough: { label: "Sukar untuk makan cukup" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Bilakah paling sukar untuk mencatat?"],
+          variants: { never: ["Bilakah anda jangkakan paling sukar untuk mencatat?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Hari bekerja yang sibuk" },
+        eating_out: { label: "Makan di luar" },
+        cooking: { label: "Memasak untuk orang lain" },
+        snacks: { label: "Snek dan minuman" },
+        evenings: { label: "Waktu petang dan hujung minggu" },
       },
     },
     {
@@ -3647,7 +4279,7 @@ const MS: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Di mana anda tinggal?"], placeholder: "Cari" },
+        country: { lines: ["Di mana anda makan?"], placeholder: "Cari" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -3665,6 +4297,18 @@ const MS: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Tempat lain" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Pilih rentetan yang anda sasarkan"] },
+      },
+      options: {
+        "7": { label: "7 hari" },
+        "14": { label: "14 hari" },
+        "30": { label: "30 hari" },
+        "50": { label: "50 hari" },
       },
     },
   ],
@@ -3746,10 +4390,10 @@ const CA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Un pla fet a la teva mida", "La teva meta, el teu dia, els teus àpats"],
-    cta: "Crea el meu pla",
+    lines: ["Compta calories amb una foto"],
+    cta: "Comença",
     signin: "Ja tinc un compte",
   },
   screens: [
@@ -3789,7 +4433,7 @@ const CA: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Quant fas d'alçada?"],
+          lines: ["Alçada"],
           placeholder: "Alçada en cm",
         },
       },
@@ -3798,7 +4442,7 @@ const CA: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Quant peses avui?"],
+          lines: ["El teu pes"],
           placeholder: "Pes en kg",
         },
       },
@@ -3840,28 +4484,51 @@ const CA: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Què t'ha costat?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Has comptat calories abans?"] } },
       options: {
-        consistency: { label: "Falta de constància" },
-        habits: { label: "Hàbits alimentaris poc saludables" },
-        support: { label: "Falta de suport" },
-        busy: { label: "Agenda atapeïda" },
-        ideas: { label: "Falta d'idees per als àpats" },
+        never: { label: "Mai" },
+        stopped: { label: "Ho vaig provar, ho vaig deixar" },
+        onoff: { label: "De tant en tant" },
+        now: { label: "Les compto ara" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Tria la ratxa que vols assolir"] },
+        barriers: {
+          lines: ["Què t'ha aturat?", "Tria tot el que encaixi"],
+          variants: {
+            onoff: ["Què s'hi va interposar?", "Tria tot el que encaixi"],
+            now: ["Què voldries que fos més fàcil?", "Tria tot el que encaixi"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dies" },
-        "14": { label: "14 dies" },
-        "30": { label: "30 dies" },
-        "50": { label: "50 dies" },
+        too_long: { label: "Em prenia massa temps" },
+        forgot: { label: "Se m'oblidava" },
+        invisible: { label: "No en veia els resultats" },
+        no_idea: { label: "No sabia què menjar" },
+        stressful: { label: "Em resultava estressant" },
+        nobody: { label: "Ningú a qui preguntar" },
+        creeping: { label: "El pes em tornava a pujar" },
+        not_enough: { label: "Em costava menjar prou" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Quan costa més registrar?"],
+          variants: { never: ["Quan creus que registrar serà més difícil?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Dies de feina aferrissats" },
+        eating_out: { label: "Menjar fora" },
+        cooking: { label: "Cuinar per a altres" },
+        snacks: { label: "Snacks i begudes" },
+        evenings: { label: "Vespres i caps de setmana" },
       },
     },
     {
@@ -3894,7 +4561,7 @@ const CA: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["On vius?"], placeholder: "Cerca" },
+        country: { lines: ["On menges?"], placeholder: "Cerca" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -3912,6 +4579,18 @@ const CA: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "En un altre lloc" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Tria la ratxa que vols assolir"] },
+      },
+      options: {
+        "7": { label: "7 dies" },
+        "14": { label: "14 dies" },
+        "30": { label: "30 dies" },
+        "50": { label: "50 dies" },
       },
     },
   ],
@@ -3993,10 +4672,10 @@ const SL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Načrt, narejen po tvoji meri", "Tvoj cilj, tvoj dan, tvoji obroki"],
-    cta: "Sestavi moj načrt",
+    lines: ["Štej kalorije s fotografijo"],
+    cta: "Začni",
     signin: "Račun že imam",
   },
   screens: [
@@ -4036,7 +4715,7 @@ const SL: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Kolikšna je tvoja višina?"],
+          lines: ["Višina"],
           placeholder: "Višina v cm",
         },
       },
@@ -4045,7 +4724,7 @@ const SL: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Koliko tehtaš danes?"],
+          lines: ["Tvoja teža"],
           placeholder: "Teža v kg",
         },
       },
@@ -4087,28 +4766,51 @@ const SL: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Kaj ti je bilo težko?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Imaš izkušnje s štetjem kalorij?"] } },
       options: {
-        consistency: { label: "Pomanjkanje doslednosti" },
-        habits: { label: "Nezdrave prehranjevalne navade" },
-        support: { label: "Pomanjkanje podpore" },
-        busy: { label: "Natrpan urnik" },
-        ideas: { label: "Pomanjkanje idej za obroke" },
+        never: { label: "Nikoli" },
+        stopped: { label: "Prej ja, zdaj ne" },
+        onoff: { label: "Kdaj pa kdaj" },
+        now: { label: "Trenutno štejem" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Izberi niz, ki ga želiš doseči"] },
+        barriers: {
+          lines: ["Kaj te je ustavilo?", "Izberi vse, kar se ujema"],
+          variants: {
+            onoff: ["Kaj je prišlo vmes?", "Izberi vse, kar se ujema"],
+            now: ["Kaj bi bilo lažje?", "Izberi vse, kar se ujema"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dni" },
-        "14": { label: "14 dni" },
-        "30": { label: "30 dni" },
-        "50": { label: "50 dni" },
+        too_long: { label: "Vzelo je preveč časa" },
+        forgot: { label: "Pozabljalo se mi je" },
+        invisible: { label: "Rezultatov ni bilo videti" },
+        no_idea: { label: "Ni bilo idej, kaj jesti" },
+        stressful: { label: "Bilo je stresno" },
+        nobody: { label: "Ni bilo koga vprašati" },
+        creeping: { label: "Teža se je vračala" },
+        not_enough: { label: "Težko je bilo pojesti dovolj" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Kdaj je beleženje najtežje?"],
+          variants: { never: ["Kdaj misliš, da bo beleženje najtežje?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Zasedeni delovniki" },
+        eating_out: { label: "Prehranjevanje zunaj" },
+        cooking: { label: "Kuhanje za druge" },
+        snacks: { label: "Prigrizki in pijače" },
+        evenings: { label: "Večeri in vikendi" },
       },
     },
     {
@@ -4141,7 +4843,7 @@ const SL: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Kje živiš?"], placeholder: "Iskanje" },
+        country: { lines: ["Kje ješ?"], placeholder: "Iskanje" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -4159,6 +4861,18 @@ const SL: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Drugje" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Izberi niz, ki ga želiš doseči"] },
+      },
+      options: {
+        "7": { label: "7 dni" },
+        "14": { label: "14 dni" },
+        "30": { label: "30 dni" },
+        "50": { label: "50 dni" },
       },
     },
   ],
@@ -4240,10 +4954,10 @@ const HR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Plan po tvojoj mjeri", "Tvoj cilj, tvoj dan, tvoji obroci"],
-    cta: "Izradi moj plan",
+    lines: ["Broji kalorije s fotografije"],
+    cta: "Kreni",
     signin: "Već imam račun",
   },
   screens: [
@@ -4283,7 +4997,7 @@ const HR: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Kolika ti je visina?"],
+          lines: ["Visina"],
           placeholder: "Visina u cm",
         },
       },
@@ -4292,7 +5006,7 @@ const HR: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Kolika ti je težina danas?"],
+          lines: ["Tvoja težina"],
           placeholder: "Težina u kg",
         },
       },
@@ -4334,28 +5048,51 @@ const HR: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Što ti je bilo teško?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Imaš li iskustva s brojanjem kalorija?"] } },
       options: {
-        consistency: { label: "Nedostatak dosljednosti" },
-        habits: { label: "Nezdrave prehrambene navike" },
-        support: { label: "Nedostatak podrške" },
-        busy: { label: "Prenatrpan raspored" },
-        ideas: { label: "Nedostatak ideja za obroke" },
+        never: { label: "Nikad" },
+        stopped: { label: "Ranije da, sada ne" },
+        onoff: { label: "Povremeno" },
+        now: { label: "Trenutno brojim" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Odaberi niz kojem težiš"] },
+        barriers: {
+          lines: ["Što te je zaustavilo?", "Odaberi sve što odgovara"],
+          variants: {
+            onoff: ["Što ti je smetalo?", "Odaberi sve što odgovara"],
+            now: ["Što bi bilo lakše?", "Odaberi sve što odgovara"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dana" },
-        "14": { label: "14 dana" },
-        "30": { label: "30 dana" },
-        "50": { label: "50 dana" },
+        too_long: { label: "Trajalo je predugo" },
+        forgot: { label: "Zaboravljalo mi se" },
+        invisible: { label: "Nisu se vidjeli rezultati" },
+        no_idea: { label: "Nije bilo ideja što jesti" },
+        stressful: { label: "Bilo je stresno" },
+        nobody: { label: "Nije bilo koga pitati" },
+        creeping: { label: "Težina se vraćala" },
+        not_enough: { label: "Teško je bilo pojesti dovoljno" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Kada je bilježenje najteže?"],
+          variants: { never: ["Kada misliš da će bilježenje biti najteže?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Naporni radni dani" },
+        eating_out: { label: "Jelo vani" },
+        cooking: { label: "Kuhanje za druge" },
+        snacks: { label: "Grickalice i pića" },
+        evenings: { label: "Večeri i vikendi" },
       },
     },
     {
@@ -4388,7 +5125,7 @@ const HR: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Gdje živiš?"], placeholder: "Traži" },
+        country: { lines: ["Gdje jedeš?"], placeholder: "Traži" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -4406,6 +5143,18 @@ const HR: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Negdje drugdje" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Odaberi niz kojem težiš"] },
+      },
+      options: {
+        "7": { label: "7 dana" },
+        "14": { label: "14 dana" },
+        "30": { label: "30 dana" },
+        "50": { label: "50 dana" },
       },
     },
   ],
@@ -4487,10 +5236,10 @@ const SK: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Plán postavený okolo teba", "Tvoj cieľ, tvoj deň, tvoje jedlá"],
-    cta: "Vytvoriť môj plán",
+    lines: ["Počítaj kalórie z fotky"],
+    cta: "Začať",
     signin: "Už mám účet",
   },
   screens: [
@@ -4530,7 +5279,7 @@ const SK: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Aká je tvoja výška?"],
+          lines: ["Výška"],
           placeholder: "Výška v cm",
         },
       },
@@ -4539,7 +5288,7 @@ const SK: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Koľko dnes vážiš?"],
+          lines: ["Tvoja váha"],
           placeholder: "Váha v kg",
         },
       },
@@ -4581,28 +5330,51 @@ const SK: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Čo ti doteraz šlo ťažko?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Máš za sebou počítanie kalórií?"] } },
       options: {
-        consistency: { label: "Nedostatok pravidelnosti" },
-        habits: { label: "Nezdravé stravovacie návyky" },
-        support: { label: "Nedostatok podpory" },
-        busy: { label: "Nabitý program" },
-        ideas: { label: "Nedostatok nápadov na jedlá" },
+        never: { label: "Nikdy" },
+        stopped: { label: "Predtým áno, teraz nie" },
+        onoff: { label: "S prestávkami" },
+        now: { label: "Počítam teraz" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Vyber si sériu, na ktorú sa zameriaš"] },
+        barriers: {
+          lines: ["Čo ťa zastavilo?", "Vyber všetko, čo sedí"],
+          variants: {
+            onoff: ["Čo ti prekážalo?", "Vyber všetko, čo sedí"],
+            now: ["Čo by malo byť jednoduchšie?", "Vyber všetko, čo sedí"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dní" },
-        "14": { label: "14 dní" },
-        "30": { label: "30 dní" },
-        "50": { label: "50 dní" },
+        too_long: { label: "Trvalo to príliš dlho" },
+        forgot: { label: "Zabúdalo sa mi" },
+        invisible: { label: "Nebolo vidieť výsledky" },
+        no_idea: { label: "Chýbali nápady, čo jesť" },
+        stressful: { label: "Bolo to stresujúce" },
+        nobody: { label: "Nebolo koho spýtať" },
+        creeping: { label: "Váha sa vracala" },
+        not_enough: { label: "Ťažké bolo zjesť dosť" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Kedy je zapisovanie najťažšie?"],
+          variants: { never: ["Kedy myslíš, že zapisovanie bude najťažšie?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Náročné pracovné dni" },
+        eating_out: { label: "Jedlo vonku" },
+        cooking: { label: "Varenie pre iných" },
+        snacks: { label: "Občerstvenie a nápoje" },
+        evenings: { label: "Večery a víkendy" },
       },
     },
     {
@@ -4635,7 +5407,7 @@ const SK: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Kde žiješ?"], placeholder: "Hľadať" },
+        country: { lines: ["Kde ješ?"], placeholder: "Hľadať" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -4653,6 +5425,18 @@ const SK: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Inde" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Vyber si sériu, na ktorú sa zameriaš"] },
+      },
+      options: {
+        "7": { label: "7 dní" },
+        "14": { label: "14 dní" },
+        "30": { label: "30 dní" },
+        "50": { label: "50 dní" },
       },
     },
   ],
@@ -4734,10 +5518,10 @@ const NO: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["En plan bygd rundt deg", "Målet ditt, dagen din, måltidene dine"],
-    cta: "Lag planen min",
+    lines: ["Tell kalorier med et bilde"],
+    cta: "Start",
     signin: "Jeg har allerede en konto",
   },
   screens: [
@@ -4777,7 +5561,7 @@ const NO: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Hvor høy er du?"],
+          lines: ["Høyde"],
           placeholder: "Høyde i cm",
         },
       },
@@ -4786,7 +5570,7 @@ const NO: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Hva veier du i dag?"],
+          lines: ["Vekten din"],
           placeholder: "Vekt i kg",
         },
       },
@@ -4828,28 +5612,51 @@ const NO: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Hva har vært vanskelig?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Telt kalorier før?"] } },
       options: {
-        consistency: { label: "Mangel på regelmessighet" },
-        habits: { label: "Usunne matvaner" },
-        support: { label: "Mangel på støtte" },
-        busy: { label: "Travel hverdag" },
-        ideas: { label: "Mangel på matinspirasjon" },
+        never: { label: "Aldri" },
+        stopped: { label: "Prøvde, sluttet" },
+        onoff: { label: "Av og til" },
+        now: { label: "Jeg teller nå" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Velg en rekke å sikte mot"] },
+        barriers: {
+          lines: ["Hva fikk deg til å slutte?", "Velg alt som passer"],
+          variants: {
+            onoff: ["Hva kom i veien?", "Velg alt som passer"],
+            now: ["Hva vil du skal være enklere?", "Velg alt som passer"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dager" },
-        "14": { label: "14 dager" },
-        "30": { label: "30 dager" },
-        "50": { label: "50 dager" },
+        too_long: { label: "Det tok for lang tid" },
+        forgot: { label: "Jeg glemte det" },
+        invisible: { label: "Jeg så ikke at det virket" },
+        no_idea: { label: "Jeg visste ikke hva jeg skulle spise" },
+        stressful: { label: "Det føltes stressende" },
+        nobody: { label: "Ingen å spørre" },
+        creeping: { label: "Vekten krøp tilbake" },
+        not_enough: { label: "Vanskelig å spise nok" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Når er det vanskeligst å logge?"],
+          variants: { never: ["Når tror du det blir vanskeligst å logge?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Travle hverdager" },
+        eating_out: { label: "Spise ute" },
+        cooking: { label: "Lage mat til andre" },
+        snacks: { label: "Snacks og drikke" },
+        evenings: { label: "Kvelder og helger" },
       },
     },
     {
@@ -4882,7 +5689,7 @@ const NO: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Hvor bor du?"], placeholder: "Søk" },
+        country: { lines: ["Hvor spiser du?"], placeholder: "Søk" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -4900,6 +5707,18 @@ const NO: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Et annet sted" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Velg en rekke å sikte mot"] },
+      },
+      options: {
+        "7": { label: "7 dager" },
+        "14": { label: "14 dager" },
+        "30": { label: "30 dager" },
+        "50": { label: "50 dager" },
       },
     },
   ],
@@ -4981,10 +5800,10 @@ const FI: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Sinun ympärillesi rakennettu suunnitelma", "Sinun tavoitteesi, päiväsi ja ateriasi"],
-    cta: "Rakenna suunnitelmani",
+    lines: ["Laske kalorit kuvalla"],
+    cta: "Aloita",
     signin: "Minulla on jo tili",
   },
   screens: [
@@ -5024,7 +5843,7 @@ const FI: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Kuinka pitkä olet?"],
+          lines: ["Pituus"],
           placeholder: "Pituus, cm",
         },
       },
@@ -5033,7 +5852,7 @@ const FI: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Paljonko painat tänään?"],
+          lines: ["Painosi"],
           placeholder: "Paino, kg",
         },
       },
@@ -5075,28 +5894,51 @@ const FI: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Mikä on ollut vaikeaa?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Oletko laskenut kaloreja?"] } },
       options: {
-        consistency: { label: "Säännöllisyyden puute" },
-        habits: { label: "Epäterveelliset ruokatottumukset" },
-        support: { label: "Tuen puute" },
-        busy: { label: "Kiireinen aikataulu" },
-        ideas: { label: "Ateriaideoiden puute" },
+        never: { label: "En koskaan" },
+        stopped: { label: "Kokeilin, lopetin" },
+        onoff: { label: "Silloin tällöin" },
+        now: { label: "Lasken nykyään" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Valitse tavoiteputki"] },
+        barriers: {
+          lines: ["Mikä sai sinut lopettamaan?", "Valitse kaikki, jotka sopivat"],
+          variants: {
+            onoff: ["Mikä tuli väliin?", "Valitse kaikki, jotka sopivat"],
+            now: ["Mitä haluaisit olevan helpompaa?", "Valitse kaikki, jotka sopivat"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 päivää" },
-        "14": { label: "14 päivää" },
-        "30": { label: "30 päivää" },
-        "50": { label: "50 päivää" },
+        too_long: { label: "Siihen meni liikaa aikaa" },
+        forgot: { label: "Unohdin" },
+        invisible: { label: "En nähnyt tuloksia" },
+        no_idea: { label: "En tiennyt, mitä syödä" },
+        stressful: { label: "Tuntui stressaavalta" },
+        nobody: { label: "Ei ketään, keneltä kysyä" },
+        creeping: { label: "Painoni hiipi takaisin" },
+        not_enough: { label: "Vaikea syödä tarpeeksi" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Milloin kirjaaminen on vaikeinta?"],
+          variants: { never: ["Milloin arvelet kirjaamisen olevan vaikeinta?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Kiireiset työpäivät" },
+        eating_out: { label: "Ravintolassa syöminen" },
+        cooking: { label: "Muille kokkaaminen" },
+        snacks: { label: "Välipalat ja juomat" },
+        evenings: { label: "Illat ja viikonloput" },
       },
     },
     {
@@ -5129,7 +5971,7 @@ const FI: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Missä asut?"], placeholder: "Hae" },
+        country: { lines: ["Missä syöt?"], placeholder: "Hae" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -5147,6 +5989,18 @@ const FI: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Muualla" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Valitse tavoiteputki"] },
+      },
+      options: {
+        "7": { label: "7 päivää" },
+        "14": { label: "14 päivää" },
+        "30": { label: "30 päivää" },
+        "50": { label: "50 päivää" },
       },
     },
   ],
@@ -5228,10 +6082,10 @@ const DA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["En plan bygget op om dig", "Dit mål, din dag, dine måltider"],
-    cta: "Lav min plan",
+    lines: ["Tæl kalorier med et foto"],
+    cta: "Start",
     signin: "Jeg har allerede en konto",
   },
   screens: [
@@ -5271,7 +6125,7 @@ const DA: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Hvor høj er du?"],
+          lines: ["Højde"],
           placeholder: "Højde i cm",
         },
       },
@@ -5280,7 +6134,7 @@ const DA: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Hvad vejer du i dag?"],
+          lines: ["Din vægt"],
           placeholder: "Vægt i kg",
         },
       },
@@ -5322,28 +6176,51 @@ const DA: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Hvad har været svært?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Talt kalorier før?"] } },
       options: {
-        consistency: { label: "Manglende kontinuitet" },
-        habits: { label: "Usunde spisevaner" },
-        support: { label: "Manglende støtte" },
-        busy: { label: "Travl hverdag" },
-        ideas: { label: "Mangel på madidéer" },
+        never: { label: "Aldrig" },
+        stopped: { label: "Prøvede, stoppede" },
+        onoff: { label: "Af og til" },
+        now: { label: "Jeg tæller nu" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Vælg en stime at sigte efter"] },
+        barriers: {
+          lines: ["Hvad fik dig til at stoppe?", "Vælg alt, der passer"],
+          variants: {
+            onoff: ["Hvad kom i vejen?", "Vælg alt, der passer"],
+            now: ["Hvad vil du gerne have lettere?", "Vælg alt, der passer"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dage" },
-        "14": { label: "14 dage" },
-        "30": { label: "30 dage" },
-        "50": { label: "50 dage" },
+        too_long: { label: "Det tog for lang tid" },
+        forgot: { label: "Jeg glemte det" },
+        invisible: { label: "Jeg så ikke, at det virkede" },
+        no_idea: { label: "Jeg vidste ikke, hvad jeg skulle spise" },
+        stressful: { label: "Det føltes stressende" },
+        nobody: { label: "Ingen at spørge" },
+        creeping: { label: "Min vægt krøb tilbage" },
+        not_enough: { label: "Svært at spise nok" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Hvornår er det sværest at logge?"],
+          variants: { never: ["Hvornår regner du med, at det er sværest at logge?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Travle hverdage" },
+        eating_out: { label: "Spise ude" },
+        cooking: { label: "Lave mad til andre" },
+        snacks: { label: "Snacks og drikke" },
+        evenings: { label: "Aftener og weekender" },
       },
     },
     {
@@ -5376,7 +6253,7 @@ const DA: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Hvor bor du?"], placeholder: "Søg" },
+        country: { lines: ["Hvor spiser du?"], placeholder: "Søg" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -5394,6 +6271,18 @@ const DA: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Et andet sted" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Vælg en stime at sigte efter"] },
+      },
+      options: {
+        "7": { label: "7 dage" },
+        "14": { label: "14 dage" },
+        "30": { label: "30 dage" },
+        "50": { label: "50 dage" },
       },
     },
   ],
@@ -5475,10 +6364,10 @@ const HU: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Rád szabott terv", "A célod, a napod, az étkezéseid"],
-    cta: "Kérem a tervem",
+    lines: ["Számolj kalóriát egy fotóval"],
+    cta: "Kezdés",
     signin: "Már van fiókom",
   },
   screens: [
@@ -5518,7 +6407,7 @@ const HU: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Milyen magas vagy?"],
+          lines: ["Magasság"],
           placeholder: "Magasság cm-ben",
         },
       },
@@ -5527,7 +6416,7 @@ const HU: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Mennyi ma a testsúlyod?"],
+          lines: ["A súlyod"],
           placeholder: "Testsúly kg-ban",
         },
       },
@@ -5569,28 +6458,51 @@ const HU: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Mi volt eddig nehéz?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Számoltál már kalóriát?"] } },
       options: {
-        consistency: { label: "Következetesség hiánya" },
-        habits: { label: "Egészségtelen étkezési szokások" },
-        support: { label: "Támogatás hiánya" },
-        busy: { label: "Zsúfolt napirend" },
-        ideas: { label: "Ötlethiány az étkezésekhez" },
+        never: { label: "Soha" },
+        stopped: { label: "Próbáltam, abbahagytam" },
+        onoff: { label: "Időnként" },
+        now: { label: "Most is számolok" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Milyen sorozatot tűzöl ki célul?"] },
+        barriers: {
+          lines: ["Mi állított meg?", "Jelölj be mindent, ami igaz"],
+          variants: {
+            onoff: ["Mi jött közbe?", "Jelölj be mindent, ami igaz"],
+            now: ["Mi legyen könnyebb?", "Jelölj be mindent, ami igaz"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 nap" },
-        "14": { label: "14 nap" },
-        "30": { label: "30 nap" },
-        "50": { label: "50 nap" },
+        too_long: { label: "Túl sokáig tartott" },
+        forgot: { label: "Elfelejtettem" },
+        invisible: { label: "Nem láttam, hogy működik" },
+        no_idea: { label: "Nem tudtam, mit egyek" },
+        stressful: { label: "Stresszes volt" },
+        nobody: { label: "Nem volt kitől kérdezni" },
+        creeping: { label: "A súlyom visszakúszott" },
+        not_enough: { label: "Nehéz volt eleget enni" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Mikor a legnehezebb naplózni?"],
+          variants: { never: ["Mikor lesz szerinted a legnehezebb naplózni?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Zsúfolt munkanapok" },
+        eating_out: { label: "Éttermi étkezés" },
+        cooking: { label: "Másoknak főzés" },
+        snacks: { label: "Nasik és italok" },
+        evenings: { label: "Esték és hétvégék" },
       },
     },
     {
@@ -5623,7 +6535,7 @@ const HU: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Hol élsz?"], placeholder: "Keresés" },
+        country: { lines: ["Hol eszel?"], placeholder: "Keresés" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -5641,6 +6553,18 @@ const HU: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Máshol" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Milyen sorozatot tűzöl ki célul?"] },
+      },
+      options: {
+        "7": { label: "7 nap" },
+        "14": { label: "14 nap" },
+        "30": { label: "30 nap" },
+        "50": { label: "50 nap" },
       },
     },
   ],
@@ -5722,10 +6646,10 @@ const EL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Ένα πλάνο φτιαγμένο για σένα", "Ο στόχος σου, η μέρα σου, τα γεύματά σου"],
-    cta: "Φτιάξε το πλάνο μου",
+    lines: ["Μέτρα θερμίδες με μια φωτογραφία"],
+    cta: "Ξεκίνα",
     signin: "Έχω ήδη λογαριασμό",
   },
   screens: [
@@ -5765,7 +6689,7 @@ const EL: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Ποιο είναι το ύψος σου;"],
+          lines: ["Ύψος"],
           placeholder: "Ύψος σε cm",
         },
       },
@@ -5774,7 +6698,7 @@ const EL: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Πόσο ζυγίζεις σήμερα;"],
+          lines: ["Το βάρος σου"],
           placeholder: "Βάρος σε kg",
         },
       },
@@ -5816,28 +6740,51 @@ const EL: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Τι σε δυσκόλευε;"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Έχεις μετρήσει θερμίδες;"] } },
       options: {
-        consistency: { label: "Έλλειψη συνέπειας" },
-        habits: { label: "Ανθυγιεινές διατροφικές συνήθειες" },
-        support: { label: "Έλλειψη υποστήριξης" },
-        busy: { label: "Πιεσμένο πρόγραμμα" },
-        ideas: { label: "Έλλειψη ιδεών για φαγητό" },
+        never: { label: "Ποτέ" },
+        stopped: { label: "Δοκίμασα, σταμάτησα" },
+        onoff: { label: "Περιστασιακά" },
+        now: { label: "Μετράω τώρα" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Διάλεξε ένα σερί να κυνηγήσεις"] },
+        barriers: {
+          lines: ["Τι σε σταμάτησε;", "Διάλεξε όσα ταιριάζουν"],
+          variants: {
+            onoff: ["Τι μπήκε εμπόδιο;", "Διάλεξε όσα ταιριάζουν"],
+            now: ["Τι θα ήθελες πιο εύκολο;", "Διάλεξε όσα ταιριάζουν"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 ημέρες" },
-        "14": { label: "14 ημέρες" },
-        "30": { label: "30 ημέρες" },
-        "50": { label: "50 ημέρες" },
+        too_long: { label: "Έπαιρνε πολύ χρόνο" },
+        forgot: { label: "Το ξεχνούσα" },
+        invisible: { label: "Δεν έβλεπα να δουλεύει" },
+        no_idea: { label: "Δεν ήξερα τι να φάω" },
+        stressful: { label: "Ήταν αγχωτικό" },
+        nobody: { label: "Κανέναν να ρωτήσω" },
+        creeping: { label: "Το βάρος μου ξανά ανέβαινε" },
+        not_enough: { label: "Δύσκολο να φάω αρκετά" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Πότε η καταγραφή είναι πιο δύσκολη;"],
+          variants: { never: ["Πότε περιμένεις να είναι πιο δύσκολη η καταγραφή;"] },
+        },
+      },
+      options: {
+        workdays: { label: "Φορτωμένες εργάσιμες" },
+        eating_out: { label: "Φαγητό έξω" },
+        cooking: { label: "Μαγείρεμα για άλλους" },
+        snacks: { label: "Σνακ και ποτά" },
+        evenings: { label: "Βράδια και Σαββατοκύριακα" },
       },
     },
     {
@@ -5870,7 +6817,7 @@ const EL: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Πού μένεις;"], placeholder: "Αναζήτηση" },
+        country: { lines: ["Πού τρως;"], placeholder: "Αναζήτηση" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -5888,6 +6835,18 @@ const EL: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Κάπου αλλού" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Διάλεξε ένα σερί να κυνηγήσεις"] },
+      },
+      options: {
+        "7": { label: "7 ημέρες" },
+        "14": { label: "14 ημέρες" },
+        "30": { label: "30 ημέρες" },
+        "50": { label: "50 ημέρες" },
       },
     },
   ],
@@ -5969,10 +6928,10 @@ const RO: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Un plan construit în jurul tău", "Obiectivul tău, ziua ta, mesele tale"],
-    cta: "Construiește-mi planul",
+    lines: ["Numără caloriile cu o poză"],
+    cta: "Începe",
     signin: "Am deja un cont",
   },
   screens: [
@@ -6012,7 +6971,7 @@ const RO: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Ce înălțime ai?"],
+          lines: ["Înălțime"],
           placeholder: "Înălțimea în cm",
         },
       },
@@ -6021,7 +6980,7 @@ const RO: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Cât cântărești azi?"],
+          lines: ["Greutatea ta"],
           placeholder: "Greutatea în kg",
         },
       },
@@ -6063,28 +7022,51 @@ const RO: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Ce a fost greu?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Ai mai numărat calorii?"] } },
       options: {
-        consistency: { label: "Lipsa de consecvență" },
-        habits: { label: "Obiceiuri alimentare nesănătoase" },
-        support: { label: "Lipsa de sprijin" },
-        busy: { label: "Program încărcat" },
-        ideas: { label: "Lipsa de idei pentru mese" },
+        never: { label: "Niciodată" },
+        stopped: { label: "Am încercat, m-am oprit" },
+        onoff: { label: "Din când în când" },
+        now: { label: "Număr acum" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Ce serie îți propui?"] },
+        barriers: {
+          lines: ["Ce te-a oprit?", "Alege tot ce se potrivește"],
+          variants: {
+            onoff: ["Ce ți-a stat în cale?", "Alege tot ce se potrivește"],
+            now: ["Ce ai vrea să fie mai ușor?", "Alege tot ce se potrivește"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 zile" },
-        "14": { label: "14 zile" },
-        "30": { label: "30 de zile" },
-        "50": { label: "50 de zile" },
+        too_long: { label: "Dura prea mult" },
+        forgot: { label: "Uitam" },
+        invisible: { label: "Nu vedeam rezultate" },
+        no_idea: { label: "Nu știam ce să mănânc" },
+        stressful: { label: "Era stresant" },
+        nobody: { label: "Nu aveam pe cine să întreb" },
+        creeping: { label: "Greutatea mea tot revenea" },
+        not_enough: { label: "Greu să mănânc suficient" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Când e cel mai greu să notezi?"],
+          variants: { never: ["Când te aștepți să fie cel mai greu să notezi?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Zile lucrătoare aglomerate" },
+        eating_out: { label: "Mese în oraș" },
+        cooking: { label: "Gătit pentru alții" },
+        snacks: { label: "Gustări și băuturi" },
+        evenings: { label: "Seri și weekenduri" },
       },
     },
     {
@@ -6117,7 +7099,7 @@ const RO: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Unde locuiești?"], placeholder: "Caută" },
+        country: { lines: ["Unde mănânci?"], placeholder: "Caută" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -6135,6 +7117,18 @@ const RO: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Altundeva" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Ce serie îți propui?"] },
+      },
+      options: {
+        "7": { label: "7 zile" },
+        "14": { label: "14 zile" },
+        "30": { label: "30 de zile" },
+        "50": { label: "50 de zile" },
       },
     },
   ],
@@ -6216,10 +7210,10 @@ const CS: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Plán postavený kolem tebe", "Tvůj cíl, tvůj den, tvoje jídla"],
-    cta: "Sestavit můj plán",
+    lines: ["Počítej kalorie z fotky"],
+    cta: "Začít",
     signin: "Už mám účet",
   },
   screens: [
@@ -6259,7 +7253,7 @@ const CS: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Jaká je tvoje výška?"],
+          lines: ["Výška"],
           placeholder: "Výška v cm",
         },
       },
@@ -6268,7 +7262,7 @@ const CS: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Kolik dnes vážíš?"],
+          lines: ["Tvoje váha"],
           placeholder: "Váha v kg",
         },
       },
@@ -6310,28 +7304,51 @@ const CS: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Co ti dělalo potíže?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Máš zkušenost s počítáním kalorií?"] } },
       options: {
-        consistency: { label: "Chybí vytrvalost" },
-        habits: { label: "Nezdravé stravovací návyky" },
-        support: { label: "Chybí podpora" },
-        busy: { label: "Nabitý program" },
-        ideas: { label: "Chybí inspirace k jídlu" },
+        never: { label: "Nikdy" },
+        stopped: { label: "Dřív jo, teď ne" },
+        onoff: { label: "S přestávkami" },
+        now: { label: "Počítám teď" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Jakou sérii si dáš za cíl?"] },
+        barriers: {
+          lines: ["Co tě zastavilo?", "Vyber všechno, co sedí"],
+          variants: {
+            onoff: ["Co ti překáželo?", "Vyber všechno, co sedí"],
+            now: ["Co by mělo být jednodušší?", "Vyber všechno, co sedí"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dní" },
-        "14": { label: "14 dní" },
-        "30": { label: "30 dní" },
-        "50": { label: "50 dní" },
+        too_long: { label: "Trvalo to moc dlouho" },
+        forgot: { label: "Zapomínalo se mi" },
+        invisible: { label: "Nebylo vidět výsledky" },
+        no_idea: { label: "Chyběly nápady, co jíst" },
+        stressful: { label: "Bylo to stresující" },
+        nobody: { label: "Nebylo koho se zeptat" },
+        creeping: { label: "Váha se vracela" },
+        not_enough: { label: "Těžké bylo sníst dost" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Kdy je zapisování nejtěžší?"],
+          variants: { never: ["Kdy si myslíš, že zapisování bude nejtěžší?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Náročné pracovní dny" },
+        eating_out: { label: "Jídlo venku" },
+        cooking: { label: "Vaření pro jiné" },
+        snacks: { label: "Svačiny a nápoje" },
+        evenings: { label: "Večery a víkendy" },
       },
     },
     {
@@ -6364,7 +7381,7 @@ const CS: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Kde žiješ?"], placeholder: "Hledat" },
+        country: { lines: ["Kde jíš?"], placeholder: "Hledat" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -6382,6 +7399,18 @@ const CS: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Jinde" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Jakou sérii si dáš za cíl?"] },
+      },
+      options: {
+        "7": { label: "7 dní" },
+        "14": { label: "14 dní" },
+        "30": { label: "30 dní" },
+        "50": { label: "50 dní" },
       },
     },
   ],
@@ -6463,10 +7492,10 @@ const HI: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["आपके हिसाब से बना प्लान", "आपका लक्ष्य, आपका दिन, आपका भोजन"],
-    cta: "मेरा प्लान बनाएँ",
+    lines: ["फोटो से कैलोरी गिनें"],
+    cta: "शुरू करें",
     signin: "मेरा अकाउंट पहले से है",
   },
   screens: [
@@ -6506,7 +7535,7 @@ const HI: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["आपकी लंबाई कितनी है?"],
+          lines: ["कद"],
           placeholder: "लंबाई cm में",
         },
       },
@@ -6515,7 +7544,7 @@ const HI: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["आज आपका वज़न कितना है?"],
+          lines: ["आपका वज़न"],
           placeholder: "वज़न kg में",
         },
       },
@@ -6557,28 +7586,51 @@ const HI: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["क्या मुश्किल रहा है?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["क्या पहले कभी कैलोरी गिनी हैं?"] } },
       options: {
-        consistency: { label: "निरंतरता की कमी" },
-        habits: { label: "खाने की अस्वस्थ आदतें" },
-        support: { label: "सपोर्ट की कमी" },
-        busy: { label: "व्यस्त दिनचर्या" },
-        ideas: { label: "भोजन के आइडिया की कमी" },
+        never: { label: "कभी नहीं" },
+        stopped: { label: "कोशिश की, फिर छोड़ दिया" },
+        onoff: { label: "कभी-कभी" },
+        now: { label: "अभी गिनती चल रही है" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["कितनी लंबी स्ट्रीक का लक्ष्य रखें?"] },
+        barriers: {
+          lines: ["किस चीज़ ने आपको रोका?", "जो भी लागू हो सब चुनें"],
+          variants: {
+            onoff: ["क्या रुकावट आई?", "जो भी लागू हो सब चुनें"],
+            now: ["क्या और आसान होना चाहिए?", "जो भी लागू हो सब चुनें"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 दिन" },
-        "14": { label: "14 दिन" },
-        "30": { label: "30 दिन" },
-        "50": { label: "50 दिन" },
+        too_long: { label: "बहुत समय लगता था" },
+        forgot: { label: "याद नहीं रहता था" },
+        invisible: { label: "असर दिखता नहीं था" },
+        no_idea: { label: "समझ नहीं आता था कि क्या खाएँ" },
+        stressful: { label: "तनावपूर्ण लगता था" },
+        nobody: { label: "पूछने के लिए कोई नहीं था" },
+        creeping: { label: "मेरा वज़न फिर बढ़ने लगता था" },
+        not_enough: { label: "ज़रूरत भर खाना मुश्किल था" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["दर्ज करना कब सबसे मुश्किल है?"],
+          variants: { never: ["कब दर्ज करना सबसे मुश्किल लगेगा?"] },
+        },
+      },
+      options: {
+        workdays: { label: "व्यस्त काम के दिन" },
+        eating_out: { label: "बाहर खाना" },
+        cooking: { label: "दूसरों के लिए खाना बनाना" },
+        snacks: { label: "नाश्ता और पेय" },
+        evenings: { label: "शामें और वीकेंड" },
       },
     },
     {
@@ -6611,7 +7663,7 @@ const HI: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["आपका देश कौन-सा है?"], placeholder: "खोजें" },
+        country: { lines: ["आप कहाँ खाते हैं?"], placeholder: "खोजें" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -6629,6 +7681,18 @@ const HI: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "कहीं और" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["कितनी लंबी स्ट्रीक का लक्ष्य रखें?"] },
+      },
+      options: {
+        "7": { label: "7 दिन" },
+        "14": { label: "14 दिन" },
+        "30": { label: "30 दिन" },
+        "50": { label: "50 दिन" },
       },
     },
   ],
@@ -6710,10 +7774,10 @@ const TH: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["แผนที่สร้างมาเพื่อคุณ", "เป้าหมายของคุณ วันของคุณ มื้ออาหารของคุณ"],
-    cta: "สร้างแผนของฉัน",
+    lines: ["นับแคลอรี่ด้วยรูปภาพ"],
+    cta: "เริ่มเลย",
     signin: "ฉันมีบัญชีอยู่แล้ว",
   },
   screens: [
@@ -6753,7 +7817,7 @@ const TH: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["คุณสูงเท่าไหร่?"],
+          lines: ["ส่วนสูง"],
           placeholder: "ส่วนสูงเป็น ซม.",
         },
       },
@@ -6762,7 +7826,7 @@ const TH: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["วันนี้คุณหนักเท่าไหร่?"],
+          lines: ["น้ำหนักของคุณ"],
           placeholder: "น้ำหนักเป็น กก.",
         },
       },
@@ -6804,28 +7868,51 @@ const TH: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["อะไรที่ผ่านมายากที่สุด?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["เคยนับแคลอรี่ไหม?"] } },
       options: {
-        consistency: { label: "ทำได้ไม่สม่ำเสมอ" },
-        habits: { label: "นิสัยการกินที่ไม่ดีต่อสุขภาพ" },
-        support: { label: "ขาดคนสนับสนุน" },
-        busy: { label: "ตารางชีวิตยุ่ง" },
-        ideas: { label: "คิดเมนูไม่ออก" },
+        never: { label: "ไม่เคย" },
+        stopped: { label: "เคยลอง แล้วเลิก" },
+        onoff: { label: "นับบ้างหยุดบ้าง" },
+        now: { label: "ตอนนี้กำลังนับอยู่" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["เลือกสตรีคที่อยากทำให้ถึง"] },
+        barriers: {
+          lines: ["อะไรทำให้คุณเลิก?", "เลือกทุกข้อที่ตรง"],
+          variants: {
+            onoff: ["อะไรเป็นอุปสรรค?", "เลือกทุกข้อที่ตรง"],
+            now: ["อยากให้อะไรง่ายขึ้น?", "เลือกทุกข้อที่ตรง"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 วัน" },
-        "14": { label: "14 วัน" },
-        "30": { label: "30 วัน" },
-        "50": { label: "50 วัน" },
+        too_long: { label: "ใช้เวลานานเกินไป" },
+        forgot: { label: "ชอบลืม" },
+        invisible: { label: "ไม่เห็นผลลัพธ์" },
+        no_idea: { label: "ไม่รู้จะกินอะไร" },
+        stressful: { label: "รู้สึกเครียด" },
+        nobody: { label: "ไม่มีใครให้ถาม" },
+        creeping: { label: "น้ำหนักกลับมาขึ้นเรื่อยๆ" },
+        not_enough: { label: "กินให้พอยาก" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["ช่วงไหนบันทึกยากสุด?"],
+          variants: { never: ["คิดว่าช่วงไหนจะบันทึกยากสุด?"] },
+        },
+      },
+      options: {
+        workdays: { label: "วันทำงานที่ยุ่ง" },
+        eating_out: { label: "กินข้าวนอกบ้าน" },
+        cooking: { label: "ทำอาหารให้คนอื่น" },
+        snacks: { label: "ของว่างและเครื่องดื่ม" },
+        evenings: { label: "ตอนเย็นและวันหยุด" },
       },
     },
     {
@@ -6858,7 +7945,7 @@ const TH: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["คุณอาศัยอยู่ที่ไหน?"], placeholder: "ค้นหา" },
+        country: { lines: ["คุณกินข้าวที่ไหน?"], placeholder: "ค้นหา" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -6876,6 +7963,18 @@ const TH: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "ที่อื่น" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["เลือกสตรีคที่อยากทำให้ถึง"] },
+      },
+      options: {
+        "7": { label: "7 วัน" },
+        "14": { label: "14 วัน" },
+        "30": { label: "30 วัน" },
+        "50": { label: "50 วัน" },
       },
     },
   ],
@@ -6957,10 +8056,10 @@ const SV: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["En plan byggd kring dig", "Ditt mål, din dag, dina måltider"],
-    cta: "Skapa min plan",
+    lines: ["Räkna kalorier med ett foto"],
+    cta: "Börja",
     signin: "Jag har redan ett konto",
   },
   screens: [
@@ -7000,7 +8099,7 @@ const SV: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Hur lång är du?"],
+          lines: ["Längd"],
           placeholder: "Längd i cm",
         },
       },
@@ -7009,7 +8108,7 @@ const SV: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Vad väger du i dag?"],
+          lines: ["Din vikt"],
           placeholder: "Vikt i kg",
         },
       },
@@ -7051,28 +8150,51 @@ const SV: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Vad har varit svårt?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Räknat kalorier förut?"] } },
       options: {
-        consistency: { label: "Brist på regelbundenhet" },
-        habits: { label: "Ohälsosamma matvanor" },
-        support: { label: "Brist på stöd" },
-        busy: { label: "Fullt schema" },
-        ideas: { label: "Brist på matinspiration" },
+        never: { label: "Aldrig" },
+        stopped: { label: "Försökte, slutade" },
+        onoff: { label: "Då och då" },
+        now: { label: "Jag räknar nu" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Välj en svit att sikta på"] },
+        barriers: {
+          lines: ["Vad fick dig att sluta?", "Välj allt som stämmer"],
+          variants: {
+            onoff: ["Vad kom i vägen?", "Välj allt som stämmer"],
+            now: ["Vad vill du ska vara enklare?", "Välj allt som stämmer"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dagar" },
-        "14": { label: "14 dagar" },
-        "30": { label: "30 dagar" },
-        "50": { label: "50 dagar" },
+        too_long: { label: "Det tog för lång tid" },
+        forgot: { label: "Jag glömde" },
+        invisible: { label: "Jag såg inte att det funkade" },
+        no_idea: { label: "Jag visste inte vad jag skulle äta" },
+        stressful: { label: "Det kändes stressigt" },
+        nobody: { label: "Ingen att fråga" },
+        creeping: { label: "Vikten smög tillbaka" },
+        not_enough: { label: "Svårt att äta tillräckligt" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["När är det svårast att logga?"],
+          variants: { never: ["När tror du att det blir svårast att logga?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Stressiga arbetsdagar" },
+        eating_out: { label: "Äta ute" },
+        cooking: { label: "Laga mat åt andra" },
+        snacks: { label: "Snacks och drycker" },
+        evenings: { label: "Kvällar och helger" },
       },
     },
     {
@@ -7105,7 +8227,7 @@ const SV: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Var bor du?"], placeholder: "Sök" },
+        country: { lines: ["Var äter du?"], placeholder: "Sök" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -7123,6 +8245,18 @@ const SV: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Någon annanstans" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Välj en svit att sikta på"] },
+      },
+      options: {
+        "7": { label: "7 dagar" },
+        "14": { label: "14 dagar" },
+        "30": { label: "30 dagar" },
+        "50": { label: "50 dagar" },
       },
     },
   ],
@@ -7204,10 +8338,10 @@ const UK: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["План, створений під тебе", "Твоя мета, твій день, твоя їжа"],
-    cta: "Створити мій план",
+    lines: ["Рахуй калорії за фото"],
+    cta: "Почати",
     signin: "У мене вже є акаунт",
   },
   screens: [
@@ -7247,7 +8381,7 @@ const UK: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Який у тебе зріст?"],
+          lines: ["Зріст"],
           placeholder: "Зріст у см",
         },
       },
@@ -7256,7 +8390,7 @@ const UK: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Скільки ти зараз важиш?"],
+          lines: ["Твоя вага"],
           placeholder: "Вага в кг",
         },
       },
@@ -7298,28 +8432,51 @@ const UK: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Що давалося найважче?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Доводилося рахувати калорії?"] } },
       options: {
-        consistency: { label: "Бракує сталості" },
-        habits: { label: "Нездорові харчові звички" },
-        support: { label: "Бракує підтримки" },
-        busy: { label: "Щільний графік" },
-        ideas: { label: "Бракує ідей для їжі" },
+        never: { label: "Ні разу" },
+        stopped: { label: "Раніше так, тепер ні" },
+        onoff: { label: "З перервами" },
+        now: { label: "Рахую зараз" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Обери серію, на яку націлитися"] },
+        barriers: {
+          lines: ["Що тебе зупинило?", "Вибери все, що підходить"],
+          variants: {
+            onoff: ["Що тобі заважало?", "Вибери все, що підходить"],
+            now: ["Що було б легше?", "Вибери все, що підходить"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 днів" },
-        "14": { label: "14 днів" },
-        "30": { label: "30 днів" },
-        "50": { label: "50 днів" },
+        too_long: { label: "Це займало забагато часу" },
+        forgot: { label: "Вилітало з голови" },
+        invisible: { label: "Не було видно результату" },
+        no_idea: { label: "Було незрозуміло, що їсти" },
+        stressful: { label: "Це напружувало" },
+        nobody: { label: "Нікого було запитати" },
+        creeping: { label: "Вага весь час поверталася" },
+        not_enough: { label: "Важко було з'їдати достатньо" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Коли записувати найважче?"],
+          variants: { never: ["Як гадаєш, коли записувати буде найважче?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Завантажені будні" },
+        eating_out: { label: "Їжа поза домом" },
+        cooking: { label: "Готування для інших" },
+        snacks: { label: "Перекуси й напої" },
+        evenings: { label: "Вечори й вихідні" },
       },
     },
     {
@@ -7352,7 +8509,7 @@ const UK: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Де ти живеш?"], placeholder: "Пошук" },
+        country: { lines: ["Де ти їси?"], placeholder: "Пошук" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -7370,6 +8527,18 @@ const UK: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Деінде" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Обери серію, на яку націлитися"] },
+      },
+      options: {
+        "7": { label: "7 днів" },
+        "14": { label: "14 днів" },
+        "30": { label: "30 днів" },
+        "50": { label: "50 днів" },
       },
     },
   ],
@@ -7451,10 +8620,10 @@ const NL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Een plan dat om jou draait", "Jouw doel, jouw dag, jouw maaltijden"],
-    cta: "Maak mijn plan",
+    lines: ["Tel calorieën met een foto"],
+    cta: "Start",
     signin: "Ik heb al een account",
   },
   screens: [
@@ -7494,7 +8663,7 @@ const NL: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Hoe lang ben je?"],
+          lines: ["Lengte"],
           placeholder: "Lengte in cm",
         },
       },
@@ -7503,7 +8672,7 @@ const NL: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Wat weeg je vandaag?"],
+          lines: ["Je gewicht"],
           placeholder: "Gewicht in kg",
         },
       },
@@ -7545,28 +8714,51 @@ const NL: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Wat was er lastig?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Al eens calorieën geteld?"] } },
       options: {
-        consistency: { label: "Gebrek aan regelmaat" },
-        habits: { label: "Ongezonde eetgewoontes" },
-        support: { label: "Gebrek aan steun" },
-        busy: { label: "Druk schema" },
-        ideas: { label: "Gebrek aan maaltijdideeën" },
+        never: { label: "Nooit" },
+        stopped: { label: "Geprobeerd, gestopt" },
+        onoff: { label: "Af en toe" },
+        now: { label: "Ik tel nu" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Kies een reeks als doel"] },
+        barriers: {
+          lines: ["Wat hield je tegen?", "Kies alles wat past"],
+          variants: {
+            onoff: ["Wat kwam ertussen?", "Kies alles wat past"],
+            now: ["Wat zou je makkelijker willen?", "Kies alles wat past"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dagen" },
-        "14": { label: "14 dagen" },
-        "30": { label: "30 dagen" },
-        "50": { label: "50 dagen" },
+        too_long: { label: "Het duurde te lang" },
+        forgot: { label: "Ik vergat het" },
+        invisible: { label: "Ik zag niet dat het werkte" },
+        no_idea: { label: "Ik wist niet wat te eten" },
+        stressful: { label: "Het voelde stressvol" },
+        nobody: { label: "Niemand om te vragen" },
+        creeping: { label: "Mijn gewicht kroop terug" },
+        not_enough: { label: "Moeilijk genoeg eten" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Wanneer is bijhouden het lastigst?"],
+          variants: { never: ["Wanneer denk je dat bijhouden het lastigst wordt?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Drukke werkdagen" },
+        eating_out: { label: "Uit eten" },
+        cooking: { label: "Koken voor anderen" },
+        snacks: { label: "Snacks en drankjes" },
+        evenings: { label: "Avonden en weekenden" },
       },
     },
     {
@@ -7599,7 +8791,7 @@ const NL: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Waar woon je?"], placeholder: "Zoek" },
+        country: { lines: ["Waar eet je?"], placeholder: "Zoek" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -7617,6 +8809,18 @@ const NL: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Ergens anders" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Kies een reeks als doel"] },
+      },
+      options: {
+        "7": { label: "7 dagen" },
+        "14": { label: "14 dagen" },
+        "30": { label: "30 dagen" },
+        "50": { label: "50 dagen" },
       },
     },
   ],
@@ -7698,10 +8902,10 @@ const PL: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Plan stworzony dla ciebie", "Twój cel, twój dzień, twoje posiłki"],
-    cta: "Stwórz mój plan",
+    lines: ["Policz kalorie ze zdjęcia"],
+    cta: "Zacznij",
     signin: "Mam już konto",
   },
   screens: [
@@ -7741,7 +8945,7 @@ const PL: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Ile masz wzrostu?"],
+          lines: ["Wzrost"],
           placeholder: "Wzrost w cm",
         },
       },
@@ -7750,7 +8954,7 @@ const PL: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Ile dziś ważysz?"],
+          lines: ["Twoja waga"],
           placeholder: "Waga w kg",
         },
       },
@@ -7792,28 +8996,51 @@ const PL: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Co było najtrudniejsze?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Masz doświadczenie w liczeniu kalorii?"] } },
       options: {
-        consistency: { label: "Brak regularności" },
-        habits: { label: "Niezdrowe nawyki żywieniowe" },
-        support: { label: "Brak wsparcia" },
-        busy: { label: "Napięty grafik" },
-        ideas: { label: "Brak pomysłów na posiłki" },
+        never: { label: "Nigdy" },
+        stopped: { label: "Kiedyś tak, teraz nie" },
+        onoff: { label: "Z przerwami" },
+        now: { label: "Tak, liczę" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Jaką serię chcesz osiągnąć?"] },
+        barriers: {
+          lines: ["Co cię zatrzymało?", "Zaznacz wszystko, co pasuje"],
+          variants: {
+            onoff: ["Co ci przeszkodziło?", "Zaznacz wszystko, co pasuje"],
+            now: ["Co chcesz uprościć?", "Zaznacz wszystko, co pasuje"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dni" },
-        "14": { label: "14 dni" },
-        "30": { label: "30 dni" },
-        "50": { label: "50 dni" },
+        too_long: { label: "To zajmowało za dużo czasu" },
+        forgot: { label: "Zapominało się" },
+        invisible: { label: "Nie było widać efektów" },
+        no_idea: { label: "Brakowało pomysłu, co jeść" },
+        stressful: { label: "To było stresujące" },
+        nobody: { label: "Nie było kogo zapytać" },
+        creeping: { label: "Waga wracała" },
+        not_enough: { label: "Trudno było zjeść wystarczająco" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Kiedy zapisywanie jest najtrudniejsze?"],
+          variants: { never: ["Kiedy spodziewasz się, że zapisywanie będzie najtrudniejsze?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Zajęte dni powszednie" },
+        eating_out: { label: "Jedzenie na mieście" },
+        cooking: { label: "Gotowanie dla innych" },
+        snacks: { label: "Przekąski i napoje" },
+        evenings: { label: "Wieczory i weekendy" },
       },
     },
     {
@@ -7846,7 +9073,7 @@ const PL: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Gdzie mieszkasz?"], placeholder: "Szukaj" },
+        country: { lines: ["Gdzie jesz?"], placeholder: "Szukaj" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -7864,6 +9091,18 @@ const PL: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Gdzie indziej" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Jaką serię chcesz osiągnąć?"] },
+      },
+      options: {
+        "7": { label: "7 dni" },
+        "14": { label: "14 dni" },
+        "30": { label: "30 dni" },
+        "50": { label: "50 dni" },
       },
     },
   ],
@@ -7945,10 +9184,10 @@ const TR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Sana göre kurulmuş bir plan", "Hedefin, günün, öğünlerin"],
-    cta: "Planımı oluştur",
+    lines: ["Fotoğrafla kalori say"],
+    cta: "Başla",
     signin: "Zaten bir hesabım var",
   },
   screens: [
@@ -7988,7 +9227,7 @@ const TR: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Boyun kaç?"],
+          lines: ["Boy"],
           placeholder: "Boy (cm)",
         },
       },
@@ -7997,7 +9236,7 @@ const TR: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Bugün kaç kilosun?"],
+          lines: ["Kilon"],
           placeholder: "Kilo (kg)",
         },
       },
@@ -8039,28 +9278,51 @@ const TR: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["Şimdiye kadar en çok ne zorladı?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Daha önce kalori saydın mı?"] } },
       options: {
-        consistency: { label: "Süreklilik eksikliği" },
-        habits: { label: "Sağlıksız beslenme alışkanlıkları" },
-        support: { label: "Destek eksikliği" },
-        busy: { label: "Yoğun program" },
-        ideas: { label: "Yemek fikri eksikliği" },
+        never: { label: "Hiç" },
+        stopped: { label: "Denemiştim, bıraktım" },
+        onoff: { label: "Arada sırada" },
+        now: { label: "Şimdi sayıyorum" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Hedefleyeceğin bir seri seç"] },
+        barriers: {
+          lines: ["Seni ne durdurdu?", "Uyanların hepsini seç"],
+          variants: {
+            onoff: ["Ne engel oldu?", "Uyanların hepsini seç"],
+            now: ["Neyin daha kolay olmasını isterdin?", "Uyanların hepsini seç"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 gün" },
-        "14": { label: "14 gün" },
-        "30": { label: "30 gün" },
-        "50": { label: "50 gün" },
+        too_long: { label: "Çok uzun sürüyordu" },
+        forgot: { label: "Unutuyordum" },
+        invisible: { label: "İşe yaradığını göremiyordum" },
+        no_idea: { label: "Ne yiyeceğimi bilmiyordum" },
+        stressful: { label: "Stresli geliyordu" },
+        nobody: { label: "Soracak kimse yoktu" },
+        creeping: { label: "Kilom sürekli geri geliyordu" },
+        not_enough: { label: "Yeterince yemek zordu" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Kaydetmek ne zaman en zor?"],
+          variants: { never: ["Kaydetmenin ne zaman en zor olacağını düşünüyorsun?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Yoğun iş günleri" },
+        eating_out: { label: "Dışarıda yemek" },
+        cooking: { label: "Başkaları için yemek yapmak" },
+        snacks: { label: "Atıştırmalıklar ve içecekler" },
+        evenings: { label: "Akşamlar ve hafta sonları" },
       },
     },
     {
@@ -8093,7 +9355,7 @@ const TR: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Nerede yaşıyorsun?"], placeholder: "Ara" },
+        country: { lines: ["Nerede yemek yiyorsun?"], placeholder: "Ara" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -8111,6 +9373,18 @@ const TR: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Başka bir yer" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Hedefleyeceğin bir seri seç"] },
+      },
+      options: {
+        "7": { label: "7 gün" },
+        "14": { label: "14 gün" },
+        "30": { label: "30 gün" },
+        "50": { label: "50 gün" },
       },
     },
   ],
@@ -8192,10 +9466,10 @@ const ZH_HANT: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["為你量身打造的計畫", "你的目標、你的日常、你的餐點"],
-    cta: "建立我的計畫",
+    lines: ["拍照算卡路里"],
+    cta: "開始",
     signin: "我已經有帳號了",
   },
   screens: [
@@ -8235,7 +9509,7 @@ const ZH_HANT: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["你的身高是？"],
+          lines: ["身高"],
           placeholder: "身高（公分）",
         },
       },
@@ -8244,7 +9518,7 @@ const ZH_HANT: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["你今天的體重是？"],
+          lines: ["你的體重"],
           placeholder: "體重（公斤）",
         },
       },
@@ -8286,28 +9560,51 @@ const ZH_HANT: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["過去最難的是什麼？"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["算過卡路里嗎？"] } },
       options: {
-        consistency: { label: "難以持之以恆" },
-        habits: { label: "不健康的飲食習慣" },
-        support: { label: "缺乏支持" },
-        busy: { label: "行程太忙" },
-        ideas: { label: "缺少餐點靈感" },
+        never: { label: "沒算過" },
+        stopped: { label: "試過，後來停了" },
+        onoff: { label: "斷斷續續" },
+        now: { label: "現在還在算" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["選一個想達成的連續天數"] },
+        barriers: {
+          lines: ["什麼讓你停下來？", "符合的都選"],
+          variants: {
+            onoff: ["什麼讓你卡住了？", "符合的都選"],
+            now: ["你希望什麼更簡單？", "符合的都選"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 天" },
-        "14": { label: "14 天" },
-        "30": { label: "30 天" },
-        "50": { label: "50 天" },
+        too_long: { label: "太花時間" },
+        forgot: { label: "常常忘記" },
+        invisible: { label: "看不出效果" },
+        no_idea: { label: "不知道該吃什麼" },
+        stressful: { label: "壓力很大" },
+        nobody: { label: "沒人可以問" },
+        creeping: { label: "體重總是悄悄回升" },
+        not_enough: { label: "很難吃夠" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["什麼時候最難記錄？"],
+          variants: { never: ["你覺得什麼時候會最難記錄？"] },
+        },
+      },
+      options: {
+        workdays: { label: "忙碌的工作日" },
+        eating_out: { label: "外食" },
+        cooking: { label: "幫別人煮飯" },
+        snacks: { label: "零食和飲料" },
+        evenings: { label: "晚上和週末" },
       },
     },
     {
@@ -8340,7 +9637,7 @@ const ZH_HANT: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["你住在哪裡？"], placeholder: "搜尋" },
+        country: { lines: ["你在哪裡吃飯？"], placeholder: "搜尋" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -8358,6 +9655,18 @@ const ZH_HANT: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "其他地區" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["選一個想達成的連續天數"] },
+      },
+      options: {
+        "7": { label: "7 天" },
+        "14": { label: "14 天" },
+        "30": { label: "30 天" },
+        "50": { label: "50 天" },
       },
     },
   ],
@@ -8439,10 +9748,10 @@ const ZH_HANS: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["为你量身定制的计划", "你的目标、你的一天、你的饮食"],
-    cta: "制定我的计划",
+    lines: ["拍照算卡路里"],
+    cta: "开始",
     signin: "我已有账户",
   },
   screens: [
@@ -8482,7 +9791,7 @@ const ZH_HANS: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["你的身高是多少？"],
+          lines: ["身高"],
           placeholder: "身高（厘米）",
         },
       },
@@ -8491,7 +9800,7 @@ const ZH_HANS: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["你现在的体重是多少？"],
+          lines: ["你的体重"],
           placeholder: "体重（公斤）",
         },
       },
@@ -8533,28 +9842,51 @@ const ZH_HANS: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["之前最难的是什么？"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["算过卡路里吗？"] } },
       options: {
-        consistency: { label: "难以坚持" },
-        habits: { label: "不健康的饮食习惯" },
-        support: { label: "缺少支持" },
-        busy: { label: "日程太忙" },
-        ideas: { label: "缺少饮食灵感" },
+        never: { label: "没算过" },
+        stopped: { label: "试过，后来停了" },
+        onoff: { label: "断断续续" },
+        now: { label: "现在还在算" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["选一个连续记录目标"] },
+        barriers: {
+          lines: ["是什么让你停下了？", "符合的都选"],
+          variants: {
+            onoff: ["是什么让你卡住了？", "符合的都选"],
+            now: ["你希望什么更简单？", "符合的都选"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 天" },
-        "14": { label: "14 天" },
-        "30": { label: "30 天" },
-        "50": { label: "50 天" },
+        too_long: { label: "太花时间" },
+        forgot: { label: "常常忘记" },
+        invisible: { label: "看不到效果" },
+        no_idea: { label: "不知道该吃什么" },
+        stressful: { label: "压力很大" },
+        nobody: { label: "没人可以问" },
+        creeping: { label: "体重总是悄悄回升" },
+        not_enough: { label: "很难吃够" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["什么时候最难记录？"],
+          variants: { never: ["你觉得什么时候会最难记录？"] },
+        },
+      },
+      options: {
+        workdays: { label: "忙碌的工作日" },
+        eating_out: { label: "外食" },
+        cooking: { label: "帮别人做饭" },
+        snacks: { label: "零食和饮料" },
+        evenings: { label: "晚上和周末" },
       },
     },
     {
@@ -8587,7 +9919,7 @@ const ZH_HANS: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["你住在哪里？"], placeholder: "搜索" },
+        country: { lines: ["你在哪里吃饭？"], placeholder: "搜索" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -8605,6 +9937,18 @@ const ZH_HANS: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "其他地方" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["选一个连续记录目标"] },
+      },
+      options: {
+        "7": { label: "7 天" },
+        "14": { label: "14 天" },
+        "30": { label: "30 天" },
+        "50": { label: "50 天" },
       },
     },
   ],
@@ -8686,10 +10030,10 @@ const KO: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["나에게 맞춘 플랜", "내 목표, 내 하루, 내 식사"],
-    cta: "내 플랜 만들기",
+    lines: ["사진으로 칼로리 계산"],
+    cta: "시작하기",
     signin: "이미 계정이 있어요",
   },
   screens: [
@@ -8729,7 +10073,7 @@ const KO: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["키가 어떻게 되세요?"],
+          lines: ["키"],
           placeholder: "키(cm)",
         },
       },
@@ -8738,7 +10082,7 @@ const KO: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["오늘 체중이 얼마예요?"],
+          lines: ["몸무게"],
           placeholder: "체중(kg)",
         },
       },
@@ -8780,28 +10124,51 @@ const KO: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["어떤 점이 어려웠어요?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["칼로리를 계산해 본 적 있나요?"] } },
       options: {
-        consistency: { label: "꾸준함 부족" },
-        habits: { label: "건강하지 않은 식습관" },
-        support: { label: "주변의 지지 부족" },
-        busy: { label: "바쁜 일정" },
-        ideas: { label: "식사 아이디어 부족" },
+        never: { label: "한 번도 없어요" },
+        stopped: { label: "해봤다가 그만뒀어요" },
+        onoff: { label: "했다 말다 해요" },
+        now: { label: "지금도 계산해요" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["목표 연속 기록을 골라 보세요"] },
+        barriers: {
+          lines: ["무엇 때문에 그만두셨나요?", "해당하는 것을 모두 고르세요"],
+          variants: {
+            onoff: ["무엇이 방해가 됐나요?", "해당하는 것을 모두 고르세요"],
+            now: ["뭐가 더 쉬웠으면 하나요?", "해당하는 것을 모두 고르세요"],
+          },
+        },
       },
       options: {
-        "7": { label: "7일" },
-        "14": { label: "14일" },
-        "30": { label: "30일" },
-        "50": { label: "50일" },
+        too_long: { label: "시간이 너무 걸려요" },
+        forgot: { label: "자꾸 까먹어요" },
+        invisible: { label: "효과가 눈에 안 보여요" },
+        no_idea: { label: "뭘 먹어야 할지 몰라서요" },
+        stressful: { label: "스트레스였어요" },
+        nobody: { label: "물어볼 사람이 없어요" },
+        creeping: { label: "체중이 자꾸 다시 늘어요" },
+        not_enough: { label: "충분히 먹기 힘들어요" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["언제 기록하기가 가장 어려워요?"],
+          variants: { never: ["언제 기록하기가 가장 어려울 것 같아요?"] },
+        },
+      },
+      options: {
+        workdays: { label: "바쁜 평일" },
+        eating_out: { label: "외식할 때" },
+        cooking: { label: "남을 위해 요리할 때" },
+        snacks: { label: "간식과 음료" },
+        evenings: { label: "저녁과 주말" },
       },
     },
     {
@@ -8834,7 +10201,7 @@ const KO: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["어디에 사세요?"], placeholder: "검색" },
+        country: { lines: ["어디서 식사하세요?"], placeholder: "검색" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -8852,6 +10219,18 @@ const KO: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "다른 곳" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["목표 연속 기록을 골라 보세요"] },
+      },
+      options: {
+        "7": { label: "7일" },
+        "14": { label: "14일" },
+        "30": { label: "30일" },
+        "50": { label: "50일" },
       },
     },
   ],
@@ -8933,10 +10312,10 @@ const JA: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["あなたに合わせたプラン", "あなたの目標、1日、食事に合わせて"],
-    cta: "プランを作る",
+    lines: ["写真でカロリー計算"],
+    cta: "はじめる",
     signin: "アカウントをお持ちの方",
   },
   screens: [
@@ -8976,7 +10355,7 @@ const JA: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["身長を教えてください"],
+          lines: ["身長"],
           placeholder: "身長（cm）",
         },
       },
@@ -8985,7 +10364,7 @@ const JA: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["今日の体重は？"],
+          lines: ["体重"],
           placeholder: "体重（kg）",
         },
       },
@@ -9027,28 +10406,51 @@ const JA: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["これまで何が大変でしたか？"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["カロリーを計算したことはありますか？"] } },
       options: {
-        consistency: { label: "続かない" },
-        habits: { label: "不健康な食習慣" },
-        support: { label: "サポートがない" },
-        busy: { label: "忙しい毎日" },
-        ideas: { label: "食事のアイデアが浮かばない" },
+        never: { label: "一度もない" },
+        stopped: { label: "やってみて、やめた" },
+        onoff: { label: "やったりやめたり" },
+        now: { label: "今も計算中" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["連続記録の目標を選びましょう"] },
+        barriers: {
+          lines: ["何が原因でやめましたか？", "あてはまるものをすべて選んでください"],
+          variants: {
+            onoff: ["何がじゃまになりましたか？", "あてはまるものをすべて選んでください"],
+            now: ["何をもっと簡単にしたいですか？", "あてはまるものをすべて選んでください"],
+          },
+        },
       },
       options: {
-        "7": { label: "7日" },
-        "14": { label: "14日" },
-        "30": { label: "30日" },
-        "50": { label: "50日" },
+        too_long: { label: "時間がかかりすぎた" },
+        forgot: { label: "忘れてしまった" },
+        invisible: { label: "効果が見えなかった" },
+        no_idea: { label: "何を食べればいいか分からなかった" },
+        stressful: { label: "ストレスに感じた" },
+        nobody: { label: "聞ける人がいなかった" },
+        creeping: { label: "体重が少しずつ戻ってきた" },
+        not_enough: { label: "十分に食べるのが難しかった" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["記録が難しいのはいつですか？"],
+          variants: { never: ["記録が難しくなりそうなのはいつですか？"] },
+        },
+      },
+      options: {
+        workdays: { label: "忙しい平日" },
+        eating_out: { label: "外食" },
+        cooking: { label: "人のために料理" },
+        snacks: { label: "間食と飲み物" },
+        evenings: { label: "夜と週末" },
       },
     },
     {
@@ -9081,7 +10483,7 @@ const JA: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["お住まいはどこですか？"], placeholder: "検索" },
+        country: { lines: ["どこで食事をしますか？"], placeholder: "検索" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -9099,6 +10501,18 @@ const JA: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "その他の地域" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["連続記録の目標を選びましょう"] },
+      },
+      options: {
+        "7": { label: "7日" },
+        "14": { label: "14日" },
+        "30": { label: "30日" },
+        "50": { label: "50日" },
       },
     },
   ],
@@ -9180,10 +10594,10 @@ const PT_BR: OnboardingContent = {
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
   // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
   // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
-  version: 17,
+  version: 18,
   welcome: {
-    lines: ["Um plano feito para você", "Sua meta, seu dia, suas refeições"],
-    cta: "Montar meu plano",
+    lines: ["Conte calorias com uma foto"],
+    cta: "Começar",
     signin: "Já tenho uma conta",
   },
   screens: [
@@ -9223,7 +10637,7 @@ const PT_BR: OnboardingContent = {
       id: "height",
       asks: {
         height_cm: {
-          lines: ["Qual é a sua altura?"],
+          lines: ["Altura"],
           placeholder: "Altura em cm",
         },
       },
@@ -9232,7 +10646,7 @@ const PT_BR: OnboardingContent = {
       id: "weight",
       asks: {
         weight_kg: {
-          lines: ["Quanto você pesa hoje?"],
+          lines: ["Seu peso"],
           placeholder: "Peso em kg",
         },
       },
@@ -9274,28 +10688,51 @@ const PT_BR: OnboardingContent = {
       },
     },
     {
-      id: "struggles",
-      asks: {
-        struggles: { lines: ["O que tem sido difícil?"] },
-      },
+      id: "counted",
+      asks: { counted_before: { lines: ["Já contou calorias?"] } },
       options: {
-        consistency: { label: "Falta de constância" },
-        habits: { label: "Hábitos alimentares pouco saudáveis" },
-        support: { label: "Falta de apoio" },
-        busy: { label: "Agenda cheia" },
-        ideas: { label: "Falta de ideias de refeição" },
+        never: { label: "Nunca" },
+        stopped: { label: "Tentei, desisti" },
+        onoff: { label: "De vez em quando" },
+        now: { label: "Ainda conto" },
       },
     },
     {
-      id: "streak",
+      id: "barrier",
       asks: {
-        streak_goal_days: { lines: ["Escolha uma meta de sequência"] },
+        barriers: {
+          lines: ["O que fez você parar?", "Escolha todas que se aplicam"],
+          variants: {
+            onoff: ["O que atrapalhou?", "Escolha todas que se aplicam"],
+            now: ["O que você gostaria que fosse mais fácil?", "Escolha todas que se aplicam"],
+          },
+        },
       },
       options: {
-        "7": { label: "7 dias" },
-        "14": { label: "14 dias" },
-        "30": { label: "30 dias" },
-        "50": { label: "50 dias" },
+        too_long: { label: "Demorava demais" },
+        forgot: { label: "Eu esquecia" },
+        invisible: { label: "Não via resultados" },
+        no_idea: { label: "Não sabia o que comer" },
+        stressful: { label: "Era estressante" },
+        nobody: { label: "Ninguém para perguntar" },
+        creeping: { label: "Meu peso voltava a subir" },
+        not_enough: { label: "Difícil comer o suficiente" },
+      },
+    },
+    {
+      id: "situation",
+      asks: {
+        situations: {
+          lines: ["Quando é mais difícil registrar?"],
+          variants: { never: ["Quando você acha que registrar vai ser mais difícil?"] },
+        },
+      },
+      options: {
+        workdays: { label: "Dias de trabalho cheios" },
+        eating_out: { label: "Comer fora" },
+        cooking: { label: "Cozinhar para outros" },
+        snacks: { label: "Lanches e bebidas" },
+        evenings: { label: "Fins de tarde e fins de semana" },
       },
     },
     {
@@ -9328,7 +10765,7 @@ const PT_BR: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Onde você mora?"], placeholder: "Buscar" },
+        country: { lines: ["Onde você come?"], placeholder: "Buscar" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -9346,6 +10783,18 @@ const PT_BR: OnboardingContent = {
       enabled: true,
       options: {
         other: { label: "Outro lugar" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Escolha uma meta de sequência"] },
+      },
+      options: {
+        "7": { label: "7 dias" },
+        "14": { label: "14 dias" },
+        "30": { label: "30 dias" },
+        "50": { label: "50 dias" },
       },
     },
   ],

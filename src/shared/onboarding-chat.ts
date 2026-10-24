@@ -40,12 +40,11 @@ import { projectGoal, projectionMonth, previewProjection } from "./projection.ts
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { planCopyFor } from "./app/plan-copy.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
-import { threadCopyFor } from "./chat-copy.ts";
 import {
-  ACTIVITY_LEVELS, BARRIERS, COUNTED_BEFORE, PACES, SEXES, SITUATIONS, STREAK_GOALS, STRUGGLES,
+  ACTIVITY_LEVELS, COUNTED_BEFORE, PACES, SEXES, SITUATIONS, STREAK_GOALS,
 } from "./types.ts";
 import type {
-  Barrier, Goal, Lang, Pace, Profile, Situation, Struggle, Units, Verdict, VerdictDimension,
+  Goal, Lang, Pace, Profile, Units,
 } from "./types.ts";
 import {
   isKnownScreen, optionLabel, screenForStep, screenOptionValues, screenOptions, stepApplies,

@@ -594,6 +594,11 @@ msgstr "ରାତ୍ରି ଭୋଜନ ପାଇଁ ଏକ ହାଲୁକା �
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "ଆଜି ଅଧିକ ଖାଇବାର ସହଜ ଉପାୟ କ’ଣ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "ଆପଣଙ୍କ ପ୍ରଥମ ଦିନ ଆରମ୍ଭ ହେଲା। 20:30 ରେ ଆପଣ ଗୋଟିଏ ବାର୍ତ୍ତା ପାଇବେ — ଆଜି, ପ୍ଲାନ୍ ତୁଳନାରେ, ଆଉ କାଲି ପାଇଁ ଗୋଟିଏ ନିର୍ଦ୍ଦିଷ୍ଟ କଥା। ତା' ପୂର୍ବରୁ କିଛି ନୁହେଁ।"
 

@@ -1,13 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS, STRUGGLES, type Lang, type Profile } from "./types.ts";
-import { MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, RESTRICTION_TAGS, explainTargets } from "./targets.ts";
-import { STRUGGLE_LABELS } from "./onboarding-chat.ts";
+import { LANGS, type Lang, type Profile } from "./types.ts";
+import { MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, explainTargets } from "./targets.ts";
 import { CHAT_COPY, chatCopyFor } from "./onboarding-chat-copy.ts";
-import { threadCopyFor } from "./chat-copy.ts";
 import { lintCopy } from "./claims.ts";
 import {
   AMBIGUOUS_AGE, UNDER_AGE_CARD, belowHealthyCard, checkDirection, checkNumber,
-  ontrackCaption, pacePreview, planRows, switchedLine,
+  pacePreview, planRows, switchedLine,
 } from "./onboarding-chat.ts";
 import { DEFAULT_ONBOARDING_CONTENT } from "./onboarding.ts";
 
@@ -26,39 +24,19 @@ describe("every language's chat copy", () => {
     }
   });
 
-  it("names the coach through {coach} on the two captions that promise Chat, never a literal", () => {
-    // S9: the support and ideas captions answer "who do I ask" with `coach.name`, so a rename
-    // changes one key rather than sixteen strings. No caption may name the coach literally —
-    // the day the name changes again, every one of these still fills from `coach.name`.
-    for (const lang of LANGS) {
-      const captions = chatCopyFor(lang).ontrack.captions;
-      expect(captions.support, `${lang}.support`).toContain("{coach}");
-      expect(captions.ideas, `${lang}.ideas`).toContain("{coach}");
-      for (const s of STRUGGLES) {
-        const said = ontrackCaption([s], lang)!;
-        expect(said, `${lang}.${s}`).not.toMatch(/\{coach\}|Gabie|Габи/);
-      }
-      expect(ontrackCaption(["support"], lang), lang).toContain(threadCopyFor(lang).coach.name);
-      expect(ontrackCaption(["ideas"], lang), lang).toContain(threadCopyFor(lang).coach.name);
-    }
-  });
-
-  it("has a caption for every struggle, keyed by the id union", () => {
-    // `Record<Struggle, string>` makes the compiler name the language that forgets one; this
-    // asserts none of them is an empty string.
-    for (const lang of LANGS) {
-      for (const s of STRUGGLES) {
-        expect(chatCopyFor(lang).ontrack.captions[s]?.trim(), `${lang}.ontrack.${s}`).toBeTruthy();
-      }
-    }
-  });
-
-  it("has the new beats' words — how, health, the Continue button — in every language", () => {
+  it("has the new beats' words — baseline, prelim, echo, health, the Continue button — in every language", () => {
     for (const lang of LANGS) {
       const c = chatCopyFor(lang);
       expect(c.continueLabel.trim(), `${lang}.continue`).toBeTruthy();
-      expect(c.how.title.trim(), `${lang}.how`).toBeTruthy();
-      expect(c.how.steps, `${lang}.how.steps`).toHaveLength(3);
+      for (const key of ["title", "bmi", "what"] as const) {
+        expect(c.baseline[key].trim(), `${lang}.baseline.${key}`).toBeTruthy();
+      }
+      for (const key of ["title", "burn", "eat", "perDay"] as const) {
+        expect(c.prelim[key].trim(), `${lang}.prelim.${key}`).toBeTruthy();
+      }
+      for (const key of ["rest", "days"] as const) {
+        expect(c.echo[key].trim(), `${lang}.echo.${key}`).toBeTruthy();
+      }
       for (const key of ["title", "body"] as const) {
         expect(c.health[key].trim(), `${lang}.health.${key}`).toBeTruthy();
       }
@@ -80,7 +58,7 @@ describe("every language's chat copy", () => {
   it("keeps every placeholder code fills, and introduces none it does not", () => {
     const known = new Set([
       "share", "age", "kg", "year", "weight", "target", "n", "label", "pct", "month",
-      "rate", "kcal", "floor", "delta", "from", "to", "coach",
+      "rate", "kcal", "floor", "delta", "from", "to", "coach", "burn", "rest",
     ]);
     for (const lang of LANGS) {
       for (const [at, text] of Object.entries(flatten(chatCopyFor(lang)))) {
@@ -118,9 +96,12 @@ describe("every language's chat copy", () => {
       for (const k of ["lowest", "now", "deltaDown", "deltaUp"] as const) {
         expect(copy.target[k], `${lang}.target.${k}`).toContain("{weight}");
       }
-      // The two On-track captions that promise Chat name her through `{coach}` (S9).
-      expect(copy.ontrack.captions.support, `${lang}.ontrack.support`).toContain("{coach}");
-      expect(copy.ontrack.captions.ideas, `${lang}.ontrack.ideas`).toContain("{coach}");
+      // The mid-journey plan and the echoed burns: the gap carries `{delta}` and the keep
+      // variant `{burn}`; the echo lines carry `{rest}` and `{burn}` — computed kcal, never typed.
+      expect(copy.prelim.gap, `${lang}.prelim.gap`).toContain("{delta}");
+      expect(copy.prelim.keepTitle, `${lang}.prelim.keepTitle`).toContain("{burn}");
+      expect(copy.echo.rest, `${lang}.echo.rest`).toContain("{rest}");
+      expect(copy.echo.days, `${lang}.echo.days`).toContain("{burn}");
     }
   });
 });
@@ -130,7 +111,7 @@ describe("the readers of those tables", () => {
   const her = (lang: Lang): Profile => ({
     user_id: "u1", lang, goal: "lose", sex: "female", birth_year: 1994, height_cm: 172,
     weight_kg: 74, weight_measured_at: null, target_weight_kg: 68, activity: "few",
-    pace: "steady", units: null, struggles: ["consistency"], streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: "gb",
+    pace: "steady", units: null, struggles: ["consistency"], counted_before: null, barriers: null, situations: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: "gb",
     restrictions: ["vegan", "ldl"], medical_limitations: null, food_allergies: null,
     product_limitations: null, onboarded_at: null,
   });
@@ -146,7 +127,6 @@ describe("the readers of those tables", () => {
         AMBIGUOUS_AGE(lang).line(90), AMBIGUOUS_AGE(lang).confirm(90),
         checkDirection("gain", 93, 88, lang)!.line,
         checkDirection("lose", 93, 95, lang)!.line,
-        ontrackCaption(p.struggles, lang)!,
         preview.line!,
         ...planRows(p, explainTargets(p, today).targets, DEFAULT_ONBOARDING_CONTENT, lang)
           .flatMap((r) => [r.label, r.value]),
@@ -179,14 +159,6 @@ describe("the readers of those tables", () => {
     expect(checkDirection("gain", 93.5, 90, "en")!.line).toContain("93.5");
   });
 
-  it("labels the struggle chips from the screen's own options", () => {
-    for (const lang of LANGS) {
-      for (const tag of RESTRICTION_TAGS) expect(typeof tag).toBe("string");
-      expect(Object.keys(STRUGGLE_LABELS(DEFAULT_ONBOARDING_CONTENT)).sort())
-        .toEqual([...STRUGGLES].sort());
-    }
-  });
-
   it("carries no claim the linter would refuse — every new template, every language", () => {
     // lintCopy over every rendered string the new surfaces can show: the captions, the pace line
     // with its placeholders filled, the chart words, the how/health beats.
@@ -202,7 +174,7 @@ describe("the readers of those tables", () => {
     const FILL = {
       weight: "68kg", target: "68kg", delta: "6kg", month: "January 2027", kcal: "1,434",
       rate: "0.4kg", floor: "1,200", share: "20", age: "16", kg: "58", year: "1990",
-      n: "13", label: "0–2", pct: "8", coach: "Gabie",
+      n: "13", label: "0–2", pct: "8", coach: "Gabie", burn: "1,900", rest: "1,500",
     };
     const filled = (s: string) =>
       s.replace(/\{(\w+)\}/g, (_, k: string) => FILL[k as keyof typeof FILL] ?? "X");

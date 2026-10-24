@@ -594,6 +594,11 @@ msgstr "Miten saisin päivällisestä kevyemmän?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Mikä on helppo tapa syödä enemmän tänään?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Ensimmäinen päiväsi on alkanut. Klo 20.30 saat yhden viestin – päivä suhteessa suunnitelmaan ja yksi konkreettinen asia huomiselle. Ei mitään ennen sitä."
 

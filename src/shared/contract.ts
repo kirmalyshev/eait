@@ -5,8 +5,8 @@
 // command. Nothing in this file may import from `backend` or `src/mobile`.
 
 import type {
-  ActivityLevel, DailyTotals, DayTotals, Goal, Lang, MealItem, MealRecord, Pace, Profile, Sex,
-  Struggle, StreakGoal, Units,
+  ActivityLevel, Barrier, CountedBefore, DailyTotals, DayTotals, Goal, Lang, MealItem,
+  MealRecord, Pace, Profile, Sex, Situation, Struggle, StreakGoal, Units,
 } from "./types.ts";
 import { FOCUS_MINUTES } from "./types.ts";
 import type { Diet, MedicalTag } from "./targets.ts";
@@ -927,6 +927,15 @@ export interface PatchProfileRequest {
    * picked. Resume reads that difference; a client sending `null` clears it back to unasked.
    */
   struggles?: Struggle[] | null;
+  /** The "counted calories before" pick — `null` clears it back to unasked. */
+  counted_before?: CountedBefore | null;
+  /**
+   * The "what gets in the way" picks — same stored semantics as `struggles`: `null` = not asked,
+   * `[]` = asked, nothing picked.
+   */
+  barriers?: Barrier[] | null;
+  /** The "when is it hardest" picks — `null` = not asked, `[]` = asked, nothing picked. */
+  situations?: Situation[] | null;
   /** The streak length aimed for; `null` clears it back to unasked. */
   streak_goal_days?: StreakGoal | null;
   /** Fibre/sugar/sodium goals (#914); `null` clears one back to its default. Whole numbers, 1..`MICRO_GOAL_MAX`. */
@@ -994,12 +1003,6 @@ export interface OnboardingContentResponse {
    * sent was one this server does not carry.
    */
   lang: Lang;
-  /**
-   * How many accounts finished onboarding in the last 24 hours — the loader's "43 people are
-   * building their plan with eait" (ieat-app#2050). Null when the server could not count; a client
-   * draws the line only for a positive number.
-   */
-  peopleBuilding: number | null;
 }
 
 /**

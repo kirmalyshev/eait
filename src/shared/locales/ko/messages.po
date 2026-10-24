@@ -594,6 +594,11 @@ msgstr "저녁을 더 가볍게 바꾸려면 뭐가 좋을까요?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "오늘 더 많이 먹을 수 있는 쉬운 방법이 뭐예요?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "첫날이 시작됐어요. 20:30에 한 줄을 받게 돼요. 오늘을 플랜과 비교한 내용과 내일을 위한 구체적인 한 가지예요. 그 전에는 아무것도 보내지 않아요."
 

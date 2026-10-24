@@ -594,6 +594,11 @@ msgstr "Ce variantă mai ușoară am la cină?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Care e o cale simplă să mănânci mai mult azi?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Prima ta zi a început. La 20:30 primești un singur mesaj — ziua de azi față de plan și un lucru concret pentru mâine. Nimic înainte de asta."
 

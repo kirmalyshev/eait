@@ -600,6 +600,11 @@ msgstr "Как сделать ужин полегче?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Какой простой способ съесть сегодня больше?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Первый день пошёл. В 20:30 придёт одна строка — итог дня по плану и один конкретный совет на завтра. До этого ничего."
 

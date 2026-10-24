@@ -594,6 +594,11 @@ msgstr "Mi lehet egy könnyebb alternatíva vacsorára?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Hogyan ehetnél ma egyszerűen többet?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Elindult az első napod. 20:30-kor kapsz egy összegzést — a mai nap a tervhez képest, és egy konkrét dolog holnapra. Előtte semmi."
 

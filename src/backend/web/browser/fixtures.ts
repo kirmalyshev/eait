@@ -45,6 +45,7 @@ const ANSWERS: Record<string, string> = {
   activity: "some",
   target_weight_kg: "92",
   pace: "steady",
+  counted_before: "stopped",
   streak_goal_days: "14",
   diet: "balanced",
   country: "de",

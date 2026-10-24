@@ -594,6 +594,11 @@ msgstr "Aká je ľahšia alternatíva na večeru?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Aký je jednoduchý spôsob, ako dnes zjesť viac?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Tvoj prvý deň sa začal. O 20:30 príde jedna správa — dnešok v porovnaní s plánom a jedna konkrétna vec na zajtra. Predtým nič."
 

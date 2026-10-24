@@ -21,7 +21,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    units: null, struggles: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: null,
+    units: null, struggles: null, counted_before: null, barriers: null, situations: null, streak_goal_days: null, fiber_goal_g: null, sugar_goal_g: null, sodium_goal_mg: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true, meal_focus_offer: true, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
     ...over,
@@ -450,14 +450,17 @@ describe("the interstitials", () => {
     expect(at("weight")).toBeLessThan(at("activity"));
     expect(at("activity")).toBeLessThan(at("target"));
     expect(at("target")).toBeLessThan(at("pace"));
-    expect(at("pace")).toBeLessThan(at("struggles"));
-    expect(at("struggles")).toBeLessThan(at("diet"));
+    // The two beats sit inside the questions: the BMI card after the activity, the mid-journey
+    // plan after the pace — both read answers already given and write nothing.
+    expect(at("activity")).toBeLessThan(at("baseline"));
+    expect(at("baseline")).toBeLessThan(at("target"));
+    expect(at("pace")).toBeLessThan(at("prelim"));
+    expect(at("prelim")).toBeLessThan(at("counted"));
+    expect(at("counted")).toBeLessThan(at("barrier"));
+    expect(at("barrier")).toBeLessThan(at("situation"));
+    expect(at("situation")).toBeLessThan(at("diet"));
     expect(at("diet")).toBeLessThan(at("medical"));
-    // The two value beats follow the questions and lead into the plan (the on-track one reads struggles).
-    expect(at("medical")).toBeLessThan(at("ontrack"));
-    expect(at("ontrack")).toBeLessThan(at("how"));
-    expect(at("how")).toBeLessThan(at("summary"));
-        expect(at("medical")).toBeLessThan(at("summary"));
+    expect(at("medical")).toBeLessThan(at("summary"));
     // The account step lands between the plan and the country — the design's order, fixed here.
     expect(at("summary")).toBeLessThan(at("signup"));
     expect(at("signup")).toBeLessThan(at("country"));
@@ -472,10 +475,10 @@ describe("the analytics vocabulary", () => {
   it("reports enumerated fields only", () => {
     // Never a weight, a height, a year of birth or free text: these are answers to a health
     // questionnaire about an identified person, and analytics rows outlive the account. The
-    // enumerable picks — including struggles, diet and medical, whose v2 lists are tamer than the
-    // retired eight — travel as tag lists the way `restrictions` always did.
+    // enumerable picks — the counted/barrier/situation picks, diet and medical, whose v2 lists
+    // are tamer than the retired eight — travel as tag lists the way `restrictions` always did.
     for (const f of REPORTABLE_FIELDS) {
-      expect(["goal", "sex", "activity", "pace", "struggles", "streak_goal_days", "diet", "medical", "country"]).toContain(f);
+      expect(["goal", "sex", "activity", "pace", "counted_before", "barriers", "situations", "streak_goal_days", "diet", "medical", "country"]).toContain(f);
     }
     for (const f of ["weight_kg", "height_cm", "birth_year", "target_weight_kg"]) {
       expect(REPORTABLE_FIELDS as readonly string[]).not.toContain(f);

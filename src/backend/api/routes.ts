@@ -37,7 +37,7 @@ import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, logFoodMeal, logNumbersMeal, chatHistory, confirmPendingMeal, day, days, average, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
-  healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
+  healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
   EMAIL_ADDRESS, normalizeEmail,
   changeWeighIn, recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
@@ -816,7 +816,7 @@ export function createRouter(
           ? toLang(asked)
           : (await deps.store.getProfile(userId))?.lang ?? "en";
         return json({
-          content: await onboardingContent(deps, lang), lang, peopleBuilding: await peopleBuilding(deps),
+          content: await onboardingContent(deps, lang), lang,
         } satisfies OnboardingContentResponse);
       }
 

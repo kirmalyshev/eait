@@ -50,7 +50,7 @@ export {
   newEmailCode, normalizeEmail, sendEmailCode, verifyEmailCode,
 } from "./email.ts";
 export {
-  onboardingContent, peopleBuilding, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
+  onboardingContent, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
   adminMetrics,
   onboardingFunnel,
 } from "./onboarding.ts";

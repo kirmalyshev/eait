@@ -594,6 +594,11 @@ msgstr "Τι πιο ελαφρύ να φάω για βραδινό;"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "Ποιος είναι ένας εύκολος τρόπος να φας περισσότερο σήμερα;"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Η πρώτη σου μέρα ξεκίνησε. Στις 20:30 θα πάρεις μία γραμμή — η σημερινή μέρα σε σχέση με το πλάνο, και κάτι συγκεκριμένο για αύριο. Τίποτα πριν από αυτό."
 

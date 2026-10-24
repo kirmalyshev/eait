@@ -600,6 +600,11 @@ msgstr "Une alternative plus légère pour le dîner ?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coachStarters.eatmore"
+msgstr "C'est quoi une façon simple de manger plus aujourd'hui ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
 msgstr "Ton premier jour est lancé. À 20 h 30, tu reçois un message — ta journée face au plan, et une chose concrète pour demain. Rien avant."
 
