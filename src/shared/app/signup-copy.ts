@@ -15,6 +15,8 @@ export interface SignupCopy {
   haveAccountCta: string;
   /** The sign-up screen's headline — the product's promise, said once. */
   signUpHeading: string;
+  /** The heading when the person arrives from their plan (19, ieat-app#2050): "Save your progress". Web only. */
+  saveHeading: string;
   /** The account step after the paywall (26, ieat-app#2444): "Save your plan". */
   savePlanHeading: string;
   /** The line under it — why the account is asked for now — and the refusal sign-in's same line. */
@@ -55,6 +57,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Continue with {provider}",
     continueEmail: "Continue with email",
     signUpHeading: "Photograph what you eat, get an honest answer",
+    saveHeading: "Save your progress",
     savePlanHeading: "Save your plan",
     savePlanLine: "So your plan and your subscription follow you to a new phone, and your meals are kept.",
     signInMealHeading: "Sign in to log this meal",
@@ -63,14 +66,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Privacy Policy",
     consentMarketing: "Send me tips and new features from eait",
     errorTerms: "Agree to the Terms and Privacy Policy to continue.",
-
   },
+
+
   fr: {
     startCta: "Créer mon plan",
     haveAccountCta: "J'ai déjà un compte",
     continueWith: "Continuer avec {provider}",
     continueEmail: "Continuer par e-mail",
     signUpHeading: "Photographie ce que tu manges, reçois une réponse honnête",
+    saveHeading: "Sauvegarde ta progression",
     savePlanHeading: "Sauvegarde ton plan",
     savePlanLine: "Ainsi ton plan et ton abonnement te suivent sur un nouveau téléphone, et tes repas sont conservés.",
     signInMealHeading: "Connecte-toi pour noter ce repas",
@@ -79,14 +84,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Politique de confidentialité",
     consentMarketing: "Envoie-moi des conseils et les nouveautés d'eait",
     errorTerms: "Accepte les Conditions et la Politique de confidentialité pour continuer.",
-
   },
+
+
   de: {
     startCta: "Meinen Plan erstellen",
     haveAccountCta: "Ich habe schon ein Konto",
     continueWith: "Weiter mit {provider}",
     continueEmail: "Weiter per E-Mail",
     signUpHeading: "Fotografier, was du isst, und bekomm eine ehrliche Antwort",
+    saveHeading: "Speichere deinen Fortschritt",
     savePlanHeading: "Sichere deinen Plan",
     savePlanLine: "So wandern dein Plan und dein Abo mit auf ein neues Handy, und deine Mahlzeiten bleiben erhalten.",
     signInMealHeading: "Melde dich an, um diese Mahlzeit zu erfassen",
@@ -95,14 +102,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Datenschutzerklärung",
     consentMarketing: "Schick mir Tipps und neue Funktionen von eait",
     errorTerms: "Stimm den Nutzungsbedingungen und der Datenschutzerklärung zu, um weiterzumachen.",
-
   },
+
+
   it: {
     startCta: "Crea il mio piano",
     haveAccountCta: "Ho già un account",
     continueWith: "Continua con {provider}",
     continueEmail: "Continua con l'email",
     signUpHeading: "Fotografa quello che mangi, ricevi una risposta onesta",
+    saveHeading: "Salva i tuoi progressi",
     savePlanHeading: "Salva il tuo piano",
     savePlanLine: "Così il tuo piano e il tuo abbonamento ti seguono su un nuovo telefono, e i tuoi pasti restano salvati.",
     signInMealHeading: "Accedi per registrare questo pasto",
@@ -111,14 +120,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Informativa sulla privacy",
     consentMarketing: "Inviami consigli e novità da eait",
     errorTerms: "Accetta i Termini e l'Informativa sulla privacy per continuare.",
-
   },
+
+
   es: {
     startCta: "Crear mi plan",
     haveAccountCta: "Ya tengo una cuenta",
     continueWith: "Continuar con {provider}",
     continueEmail: "Continuar con el correo",
     signUpHeading: "Fotografía lo que comes, recibe una respuesta honesta",
+    saveHeading: "Guarda tu progreso",
     savePlanHeading: "Guarda tu plan",
     savePlanLine: "Así tu plan y tu suscripción te acompañan a un teléfono nuevo, y tus comidas se conservan.",
     signInMealHeading: "Inicia sesión para registrar esta comida",
@@ -127,14 +138,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Política de privacidad",
     consentMarketing: "Envíame consejos y novedades de eait",
     errorTerms: "Acepta los Términos y la Política de privacidad para continuar.",
-
   },
+
+
   vi: {
     startCta: "Lập kế hoạch cho mình",
     haveAccountCta: "Mình đã có tài khoản",
     continueWith: "Tiếp tục với {provider}",
     continueEmail: "Tiếp tục bằng email",
     signUpHeading: "Chụp món bạn ăn, nhận câu trả lời thẳng thắn",
+    saveHeading: "Lưu tiến trình của bạn",
     savePlanHeading: "Lưu gói của bạn",
     savePlanLine: "Để gói và đăng ký của bạn đi theo bạn sang điện thoại mới, và các bữa ăn của bạn được giữ lại.",
     signInMealHeading: "Đăng nhập để ghi lại bữa ăn này",
@@ -143,14 +156,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Chính sách quyền riêng tư",
     consentMarketing: "Gửi cho mình mẹo và tính năng mới từ eait",
     errorTerms: "Đồng ý với Điều khoản và Chính sách quyền riêng tư để tiếp tục.",
-
   },
+
+
   id: {
     startCta: "Buat rencanaku",
     haveAccountCta: "Aku sudah punya akun",
     continueWith: "Lanjutkan dengan {provider}",
     continueEmail: "Lanjutkan dengan email",
     signUpHeading: "Foto makananmu, dapatkan jawaban jujur",
+    saveHeading: "Simpan progresmu",
     savePlanHeading: "Simpan paketmu",
     savePlanLine: "Agar paket dan langgananmu mengikutimu ke ponsel baru, dan makananmu tetap tersimpan.",
     signInMealHeading: "Masuk untuk mencatat makanan ini",
@@ -159,14 +174,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Kebijakan Privasi",
     consentMarketing: "Kirimi aku tips dan fitur baru dari eait",
     errorTerms: "Setujui Ketentuan dan Kebijakan Privasi untuk melanjutkan.",
-
   },
+
+
   ru: {
     startCta: "Составить мой план",
     haveAccountCta: "У меня уже есть аккаунт",
     continueWith: "Продолжить через {provider}",
     continueEmail: "Продолжить через e-mail",
     signUpHeading: "Сфотографируй еду — получи честный ответ",
+    saveHeading: "Сохрани свой прогресс",
     savePlanHeading: "Сохрани свой план",
     savePlanLine: "Так твой план и подписка переедут с тобой на новый телефон, а приёмы пищи сохранятся.",
     signInMealHeading: "Войди, чтобы записать этот приём пищи",
@@ -175,14 +192,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Политику конфиденциальности",
     consentMarketing: "Присылать мне советы и новинки eait",
     errorTerms: "Чтобы продолжить, прими Условия и Политику конфиденциальности.",
-
   },
+
+
   te: {
     startCta: "నా ప్లాన్ రూపొందించండి",
     haveAccountCta: "నాకు ఇప్పటికే ఖాతా ఉంది",
     continueWith: "{provider} ద్వారా కొనసాగించండి",
     continueEmail: "ఈమెయిల్‌తో కొనసాగించండి",
     signUpHeading: "మీరు తినేదాన్ని ఫోటో తీయండి, నిజాయితీగల సమాధానం పొందండి",
+    saveHeading: "మీ ప్రోగ్రెస్‌ను సేవ్ చేయండి",
     savePlanHeading: "మీ ప్లాన్‌ను సేవ్ చేయండి",
     savePlanLine: "కాబట్టి మీ ప్లాన్ మరియు మీ సబ్‌స్క్రిప్షన్ కొత్త ఫోన్‌కు మీతో పాటు వస్తాయి మరియు మీ భోజనాలు నిలబడి ఉంటాయి.",
     signInMealHeading: "ఈ భోజనాన్ని నమోదు చేయడానికి సైన్ ఇన్ చేయండి",
@@ -191,14 +210,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "గోప్యతా విధానం",
     consentMarketing: "eait నుండి చిట్కాలు, కొత్త ఫీచర్‌లు నాకు పంపండి",
     errorTerms: "కొనసాగడానికి నిబంధనలు, గోప్యతా విధానానికి అంగీకరించండి.",
-
   },
+
+
   ta: {
     startCta: "என் திட்டத்தை உருவாக்கு",
     haveAccountCta: "எனக்கு ஏற்கெனவே கணக்கு உள்ளது",
     continueWith: "{provider} மூலம் தொடர்க",
     continueEmail: "மின்னஞ்சல் மூலம் தொடர்க",
     signUpHeading: "நீங்கள் சாப்பிடுவதைப் புகைப்படம் எடுங்கள், நேர்மையான பதிலைப் பெறுங்கள்",
+    saveHeading: "உங்கள் முன்னேற்றத்தைச் சேமியுங்கள்",
     savePlanHeading: "உங்கள் பிளானைச் சேமியுங்கள்",
     savePlanLine: "அதனால் உங்கள் பிளானும் சந்தாவும் புதிய தொலைபேசியில் உங்களுடன் வரும், உங்கள் உணவுகளும் பாதுகாக்கப்படும்.",
     signInMealHeading: "இந்த உணவைப் பதிவு செய்ய உள்நுழையுங்கள்",
@@ -207,14 +228,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "தனியுரிமைக் கொள்கை",
     consentMarketing: "eait-இலிருந்து குறிப்புகளையும் புதிய அம்சங்களையும் எனக்கு அனுப்பவும்",
     errorTerms: "தொடர விதிமுறைகளையும் தனியுரிமைக் கொள்கையையும் ஏற்கவும்.",
-
   },
+
+
   pa: {
     startCta: "ਮੇਰਾ ਪਲਾਨ ਬਣਾਓ",
     haveAccountCta: "ਮੇਰਾ ਪਹਿਲਾਂ ਤੋਂ ਅਕਾਊਂਟ ਹੈ",
     continueWith: "{provider} ਨਾਲ ਜਾਰੀ ਰੱਖੋ",
     continueEmail: "ਈਮੇਲ ਨਾਲ ਜਾਰੀ ਰੱਖੋ",
     signUpHeading: "ਆਪਣੇ ਖਾਣੇ ਦੀ ਫ਼ੋਟੋ ਲਓ, ਇਮਾਨਦਾਰ ਜਵਾਬ ਪਾਓ",
+    saveHeading: "ਆਪਣੀ ਪ੍ਰਗਤੀ ਸੇਵ ਕਰੋ",
     savePlanHeading: "ਆਪਣਾ ਪਲਾਨ ਸੇਵ ਕਰੋ",
     savePlanLine: "ਤਾਂ ਜੋ ਤੁਹਾਡਾ ਪਲਾਨ ਅਤੇ ਤੁਹਾਡੀ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਨਵੇਂ ਫ਼ੋਨ 'ਤੇ ਤੁਹਾਡੇ ਨਾਲ ਆਵੇ, ਅਤੇ ਤੁਹਾਡੇ ਭੋਜਨ ਸੁਰੱਖਿਅਤ ਰਹਿਣ।",
     signInMealHeading: "ਇਹ ਭੋਜਨ ਲਿਖਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ",
@@ -223,14 +246,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "ਪਰਦੇਦਾਰੀ ਨੀਤੀ",
     consentMarketing: "ਮੈਨੂੰ eait ਤੋਂ ਸੁਝਾਅ ਅਤੇ ਨਵੇਂ ਫ਼ੀਚਰ ਭੇਜੋ",
     errorTerms: "ਜਾਰੀ ਰੱਖਣ ਲਈ ਸ਼ਰਤਾਂ ਅਤੇ ਪਰਦੇਦਾਰੀ ਨੀਤੀ ਨਾਲ ਸਹਿਮਤੀ ਦਿਓ।",
-
   },
+
+
   or: {
     startCta: "ମୋ ପ୍ଲାନ୍ ତିଆରି କରନ୍ତୁ",
     haveAccountCta: "ମୋର ପୂର୍ବରୁ ଆକାଉଣ୍ଟ ଅଛି",
     continueWith: "{provider} ସହ ଜାରି ରଖନ୍ତୁ",
     continueEmail: "ଇମେଲ୍ ସହ ଜାରି ରଖନ୍ତୁ",
     signUpHeading: "ଯାହା ଖାଉଛନ୍ତି ତାହାର ଫଟୋ ନିଅନ୍ତୁ, ସଚ୍ଚୋଟ ଉତ୍ତର ପାଆନ୍ତୁ",
+    saveHeading: "ଆପଣଙ୍କ ପ୍ରଗତି ସେଭ୍ କରନ୍ତୁ",
     savePlanHeading: "ଆପଣଙ୍କ ପ୍ଲାନ ସାଇତନ୍ତୁ",
     savePlanLine: "ଯାହାଦ୍ୱାରା ଆପଣଙ୍କ ପ୍ଲାନ ଏବଂ ସବସ୍କ୍ରିପସନ ନୂଆ ଫୋନ୍‌କୁ ଆପଣଙ୍କ ସହ ଯିବ ଏବଂ ଆପଣଙ୍କ ଖାଦ୍ୟ ସୁରକ୍ଷିତ ରହିବ।",
     signInMealHeading: "ଏହି ଖାଦ୍ୟଟିକୁ ଲେଖିବା ପାଇଁ ସାଇନ୍ ଇନ୍ କରନ୍ତୁ",
@@ -239,14 +264,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "ଗୋପନୀୟତା ନୀତି",
     consentMarketing: "eait ରୁ ମୋତେ ଟିପ୍ସ ଓ ନୂଆ ଫିଚର୍ ପଠାନ୍ତୁ",
     errorTerms: "ଜାରି ରଖିବାକୁ ସର୍ତ୍ତାବଳୀ ଓ ଗୋପନୀୟତା ନୀତିରେ ସହମତି ଦିଅନ୍ତୁ।",
-
   },
+
+
   mr: {
     startCta: "माझा प्लॅन तयार करा",
     haveAccountCta: "माझे आधीच अकाउंट आहे",
     continueWith: "{provider} सह पुढे जा",
     continueEmail: "ईमेलसह पुढे जा",
     signUpHeading: "तुम्ही जे खाता त्याचा फोटो काढा, प्रामाणिक उत्तर मिळवा",
+    saveHeading: "तुमची प्रगती सेव्ह करा",
     savePlanHeading: "तुमचा प्लान जतन करा",
     savePlanLine: "म्हणजे तुमचा प्लान आणि तुमचं सबस्क्रिप्शन नवीन फोनवर तुमच्यासोबत जाईल आणि तुमचं जेवण जतन केलं जाईल.",
     signInMealHeading: "हे जेवण नोंदवण्यासाठी साइन इन करा",
@@ -255,14 +282,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "गोपनीयता धोरण",
     consentMarketing: "eait कडून टिप्स आणि नवीन फीचर्स मला पाठवा",
     errorTerms: "पुढे जाण्यासाठी अटी आणि गोपनीयता धोरणाशी सहमत व्हा.",
-
   },
+
+
   ml: {
     startCta: "എന്റെ പ്ലാൻ തയ്യാറാക്കൂ",
     haveAccountCta: "എനിക്ക് ഇതിനകം അക്കൗണ്ടുണ്ട്",
     continueWith: "{provider} ഉപയോഗിച്ച് തുടരുക",
     continueEmail: "ഇമെയിൽ ഉപയോഗിച്ച് തുടരുക",
     signUpHeading: "കഴിക്കുന്നതിന്റെ ഫോട്ടോ എടുക്കൂ, സത്യസന്ധമായ മറുപടി നേടൂ",
+    saveHeading: "നിങ്ങളുടെ പുരോഗതി സംരക്ഷിക്കൂ",
     savePlanHeading: "നിങ്ങളുടെ പ്ലാൻ സൂക്ഷിക്കൂ",
     savePlanLine: "അതുവഴി നിങ്ങളുടെ പ്ലാനും സബ്സ്ക്രിപ്ഷനും പുതിയ ഫോണിലേക്ക് നിങ്ങളോടൊപ്പം വരും, നിങ്ങളുടെ ഭക്ഷണങ്ങളും സൂക്ഷിക്കപ്പെടും.",
     signInMealHeading: "ഈ ഭക്ഷണം രേഖപ്പെടുത്താൻ സൈൻ ഇൻ ചെയ്യൂ",
@@ -271,14 +300,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "സ്വകാര്യതാ നയം",
     consentMarketing: "eait-ൽ നിന്നുള്ള നുറുങ്ങുകളും പുതിയ ഫീച്ചറുകളും എനിക്ക് അയയ്ക്കൂ",
     errorTerms: "തുടരാൻ നിബന്ധനകളും സ്വകാര്യതാ നയവും അംഗീകരിക്കൂ.",
-
   },
+
+
   kn: {
     startCta: "ನನ್ನ ಪ್ಲಾನ್ ರೂಪಿಸಿ",
     haveAccountCta: "ನನಗೆ ಈಗಾಗಲೇ ಖಾತೆ ಇದೆ",
     continueWith: "{provider} ಮೂಲಕ ಮುಂದುವರಿಸಿ",
     continueEmail: "ಇಮೇಲ್ ಮೂಲಕ ಮುಂದುವರಿಸಿ",
     signUpHeading: "ನೀವು ತಿನ್ನುವುದರ ಫೋಟೋ ತೆಗೆಯಿರಿ, ಪ್ರಾಮಾಣಿಕ ಉತ್ತರ ಪಡೆಯಿರಿ",
+    saveHeading: "ನಿಮ್ಮ ಪ್ರಗತಿಯನ್ನು ಉಳಿಸಿ",
     savePlanHeading: "ನಿಮ್ಮ ಪ್ಲಾನ್ ಉಳಿಸಿ",
     savePlanLine: "ಆದ್ದರಿಂದ ನಿಮ್ಮ ಪ್ಲಾನ್ ಮತ್ತು ನಿಮ್ಮ ಚಂದಾದಾರಿಕೆ ಹೊಸ ಫೋನ್‌ಗೆ ನಿಮ್ಮೊಂದಿಗೆ ಬರುತ್ತವೆ ಮತ್ತು ನಿಮ್ಮ ಊಟಗಳು ಉಳಿಸಲ್ಪಡುತ್ತವೆ.",
     signInMealHeading: "ಈ ಊಟವನ್ನು ದಾಖಲಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡಿ",
@@ -287,14 +318,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "ಗೌಪ್ಯತಾ ನೀತಿ",
     consentMarketing: "eait ನಿಂದ ಸಲಹೆಗಳು ಮತ್ತು ಹೊಸ ಫೀಚರ್‌ಗಳನ್ನು ನನಗೆ ಕಳುಹಿಸಿ",
     errorTerms: "ಮುಂದುವರಿಯಲು ನಿಯಮಗಳು ಮತ್ತು ಗೌಪ್ಯತಾ ನೀತಿಗೆ ಒಪ್ಪಿಗೆ ನೀಡಿ.",
-
   },
+
+
   gu: {
     startCta: "મારો પ્લાન બનાવો",
     haveAccountCta: "મારું એકાઉન્ટ પહેલેથી છે",
     continueWith: "{provider} સાથે ચાલુ રાખો",
     continueEmail: "ઇમેઇલ સાથે ચાલુ રાખો",
     signUpHeading: "તમે જે ખાઓ તેનો ફોટો લો, પ્રામાણિક જવાબ મેળવો",
+    saveHeading: "તમારી પ્રગતિ સેવ કરો",
     savePlanHeading: "તમારો પ્લાન સાચવો",
     savePlanLine: "જેથી તમારો પ્લાન અને તમારું સબ્સ્ક્રિપ્શન નવા ફોન પર તમારી સાથે રહે, અને તમારા ભોજન જળવાયેલા રહે.",
     signInMealHeading: "આ ભોજન નોંધવા માટે સાઇન ઇન કરો",
@@ -303,14 +336,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "ગોપનીયતા નીતિ",
     consentMarketing: "મને eait તરફથી ટિપ્સ અને નવાં ફીચર મોકલો",
     errorTerms: "ચાલુ રાખવા માટે શરતો અને ગોપનીયતા નીતિ સાથે સંમતિ આપો.",
-
   },
+
+
   bn: {
     startCta: "আমার প্ল্যান তৈরি করুন",
     haveAccountCta: "আমার আগে থেকেই অ্যাকাউন্ট আছে",
     continueWith: "{provider} দিয়ে চালিয়ে যান",
     continueEmail: "ইমেইল দিয়ে চালিয়ে যান",
     signUpHeading: "যা খান তার ছবি তুলুন, সৎ উত্তর পান",
+    saveHeading: "আপনার অগ্রগতি সেভ করুন",
     savePlanHeading: "আপনার প্ল্যান সংরক্ষণ করুন",
     savePlanLine: "যাতে আপনার প্ল্যান এবং সাবস্ক্রিপশন নতুন ফোনে আপনার সাথে থাকে এবং আপনার খাবারগুলো সংরক্ষিত থাকে।",
     signInMealHeading: "এই খাবারটি লিখে রাখতে সাইন ইন করুন",
@@ -319,14 +354,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "গোপনীয়তা নীতি",
     consentMarketing: "eait থেকে আমাকে টিপস ও নতুন ফিচারের খবর পাঠান",
     errorTerms: "চালিয়ে যেতে শর্তাবলি ও গোপনীয়তা নীতিতে সম্মতি দিন।",
-
   },
+
+
   "pt-PT": {
     startCta: "Criar o meu plano",
     haveAccountCta: "Já tenho uma conta",
     continueWith: "Continuar com {provider}",
     continueEmail: "Continuar com e-mail",
     signUpHeading: "Fotografa o que comes e recebe uma resposta honesta",
+    saveHeading: "Guarda o teu progresso",
     savePlanHeading: "Guarda o teu plano",
     savePlanLine: "Assim o teu plano e a tua subscrição seguem-te para um telemóvel novo e as tuas refeições ficam guardadas.",
     signInMealHeading: "Inicia sessão para registar esta refeição",
@@ -335,14 +372,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Política de Privacidade",
     consentMarketing: "Quero receber dicas e novidades do eait",
     errorTerms: "Aceita os Termos e a Política de Privacidade para continuar.",
-
   },
+
+
   ms: {
     startCta: "Bina pelan saya",
     haveAccountCta: "Saya sudah ada akaun",
     continueWith: "Teruskan dengan {provider}",
     continueEmail: "Teruskan dengan e-mel",
     signUpHeading: "Ambil foto apa yang anda makan, dapatkan jawapan yang jujur",
+    saveHeading: "Simpan kemajuan anda",
     savePlanHeading: "Simpan pelan anda",
     savePlanLine: "Supaya pelan dan langganan anda mengikut anda ke telefon baharu, dan hidangan anda disimpan.",
     signInMealHeading: "Log masuk untuk merekod hidangan ini",
@@ -351,14 +390,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Dasar Privasi",
     consentMarketing: "Hantarkan saya petua dan ciri baharu daripada eait",
     errorTerms: "Setuju dengan Terma dan Dasar Privasi untuk teruskan.",
-
   },
+
+
   ca: {
     startCta: "Crea el meu pla",
     haveAccountCta: "Ja tinc un compte",
     continueWith: "Continua amb {provider}",
     continueEmail: "Continua amb el correu",
     signUpHeading: "Fes una foto al que menges i rep una resposta honesta",
+    saveHeading: "Desa el teu progrés",
     savePlanHeading: "Desa el teu pla",
     savePlanLine: "Així el teu pla i la teva subscripció et segueixen a un telèfon nou, i els teus àpats es conserven.",
     signInMealHeading: "Inicia sessió per apuntar aquest àpat",
@@ -367,14 +408,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Política de privadesa",
     consentMarketing: "Envia'm consells i novetats d'eait",
     errorTerms: "Accepta les Condicions i la Política de privadesa per continuar.",
-
   },
+
+
   sl: {
     startCta: "Sestavi moj načrt",
     haveAccountCta: "Račun že imam",
     continueWith: "Nadaljuj z {provider}",
     continueEmail: "Nadaljuj z e-pošto",
     signUpHeading: "Fotografiraj, kar ješ, in dobi pošten odgovor",
+    saveHeading: "Shrani svoj napredek",
     savePlanHeading: "Shrani svoj paket",
     savePlanLine: "Tako se tvoj paket in naročnina preselita s teboj na nov telefon, tvoji obroki pa ostanejo shranjeni.",
     signInMealHeading: "Prijavi se, da zabeležiš ta obrok",
@@ -383,14 +426,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "pravilnikom o zasebnosti",
     consentMarketing: "Pošiljaj mi nasvete in novosti od eait",
     errorTerms: "Za nadaljevanje sprejmi pogoje uporabe in pravilnik o zasebnosti.",
-
   },
+
+
   hr: {
     startCta: "Izradi moj plan",
     haveAccountCta: "Već imam račun",
     continueWith: "Nastavi uz {provider}",
     continueEmail: "Nastavi e-poštom",
     signUpHeading: "Fotografiraj što jedeš i dobij iskren odgovor",
+    saveHeading: "Spremi svoj napredak",
     savePlanHeading: "Spremi svoj plan",
     savePlanLine: "Tako tvoj plan i pretplata idu s tobom na novi telefon, a tvoji obroci ostaju sačuvani.",
     signInMealHeading: "Prijavi se da zabilježiš ovaj obrok",
@@ -399,14 +444,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Pravila privatnosti",
     consentMarketing: "Šalji mi savjete i nove značajke od eait",
     errorTerms: "Za nastavak prihvati Uvjete korištenja i Pravila privatnosti.",
-
   },
+
+
   sk: {
     startCta: "Vytvoriť môj plán",
     haveAccountCta: "Už mám účet",
     continueWith: "Pokračovať cez {provider}",
     continueEmail: "Pokračovať e-mailom",
     signUpHeading: "Odfoť, čo ješ, a dostaneš poctivú odpoveď",
+    saveHeading: "Ulož si svoj pokrok",
     savePlanHeading: "Ulož si svoj plán",
     savePlanLine: "Aby s tebou tvoj plán aj predplatné prešli na nový telefón a tvoje jedlá ostali uložené.",
     signInMealHeading: "Prihlás sa a zapíš si toto jedlo",
@@ -415,14 +462,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Zásady ochrany súkromia",
     consentMarketing: "Posielajte mi tipy a novinky od eait",
     errorTerms: "Na pokračovanie prijmi Podmienky a Zásady ochrany súkromia.",
-
   },
+
+
   no: {
     startCta: "Lag planen min",
     haveAccountCta: "Jeg har allerede en konto",
     continueWith: "Fortsett med {provider}",
     continueEmail: "Fortsett med e-post",
     signUpHeading: "Ta bilde av det du spiser, få et ærlig svar",
+    saveHeading: "Lagre fremgangen din",
     savePlanHeading: "Lagre planen din",
     savePlanLine: "Slik følger planen og abonnementet ditt med over på en ny telefon, og måltidene dine blir lagret.",
     signInMealHeading: "Logg inn for å lagre dette måltidet",
@@ -431,14 +480,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "personvernerklæringen",
     consentMarketing: "Send meg tips og nye funksjoner fra eait",
     errorTerms: "Godta vilkårene og personvernerklæringen for å fortsette.",
-
   },
+
+
   fi: {
     startCta: "Rakenna suunnitelmani",
     haveAccountCta: "Minulla on jo tili",
     continueWith: "Jatka palvelulla {provider}",
     continueEmail: "Jatka sähköpostilla",
     signUpHeading: "Kuvaa, mitä syöt, ja saat rehellisen vastauksen",
+    saveHeading: "Tallenna edistymisesi",
     savePlanHeading: "Tallenna tilauksesi",
     savePlanLine: "Näin suunnitelmasi ja tilauksesi siirtyvät mukanasi uuteen puhelimeen ja ateriasi säilyvät.",
     signInMealHeading: "Kirjaudu sisään tallentaaksesi tämän aterian",
@@ -447,14 +498,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Tietosuojakäytäntö",
     consentMarketing: "Lähetä minulle vinkkejä ja uutuuksia eait-sovelluksesta",
     errorTerms: "Hyväksy käyttöehdot ja tietosuojakäytäntö jatkaaksesi.",
-
   },
+
+
   da: {
     startCta: "Lav min plan",
     haveAccountCta: "Jeg har allerede en konto",
     continueWith: "Fortsæt med {provider}",
     continueEmail: "Fortsæt med e-mail",
     signUpHeading: "Tag et foto af det, du spiser, og få et ærligt svar",
+    saveHeading: "Gem dine fremskridt",
     savePlanHeading: "Gem din plan",
     savePlanLine: "Så følger din plan og dit abonnement med over på en ny telefon, og dine måltider bliver gemt.",
     signInMealHeading: "Log ind for at gemme dette måltid",
@@ -463,14 +516,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Privatlivspolitik",
     consentMarketing: "Send mig tips og nye funktioner fra eait",
     errorTerms: "Accepter Vilkår og Privatlivspolitik for at fortsætte.",
-
   },
+
+
   hu: {
     startCta: "Kérem a tervemet",
     haveAccountCta: "Már van fiókom",
     continueWith: "Folytatás ezzel: {provider}",
     continueEmail: "Folytatás e-maillel",
     signUpHeading: "Fotózd le, amit eszel, és kapj őszinte választ",
+    saveHeading: "Mentsd el a haladásodat",
     savePlanHeading: "Mentsd el a csomagodat",
     savePlanLine: "Így a csomagod és az előfizetésed veled tart az új telefonodra, az ételeid pedig megmaradnak.",
     signInMealHeading: "Jelentkezz be az étkezés rögzítéséhez",
@@ -479,14 +534,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Adatvédelmi irányelveit",
     consentMarketing: "Kérek tippeket és újdonságokat az eait-től",
     errorTerms: "A folytatáshoz fogadd el a Felhasználási feltételeket és az Adatvédelmi irányelveket.",
-
   },
+
+
   el: {
     startCta: "Φτιάξε το πλάνο μου",
     haveAccountCta: "Έχω ήδη λογαριασμό",
     continueWith: "Συνέχεια με {provider}",
     continueEmail: "Συνέχεια με email",
     signUpHeading: "Φωτογράφισε ό,τι τρως, πάρε μια ειλικρινή απάντηση",
+    saveHeading: "Αποθήκευσε την πρόοδό σου",
     savePlanHeading: "Αποθήκευσε το πλάνο σου",
     savePlanLine: "Έτσι το πλάνο και η συνδρομή σου σε ακολουθούν σε νέο τηλέφωνο και τα γεύματά σου διατηρούνται.",
     signInMealHeading: "Σύνδεσου για να καταγράψεις αυτό το γεύμα",
@@ -495,14 +552,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Πολιτική απορρήτου",
     consentMarketing: "Στείλε μου συμβουλές και νέες λειτουργίες από το eait",
     errorTerms: "Αποδέξου τους Όρους χρήσης και την Πολιτική απορρήτου για να συνεχίσεις.",
-
   },
+
+
   ro: {
     startCta: "Construiește-mi planul",
     haveAccountCta: "Am deja un cont",
     continueWith: "Continuă cu {provider}",
     continueEmail: "Continuă cu e-mail",
     signUpHeading: "Fotografiază ce mănânci, primește un răspuns onest",
+    saveHeading: "Salvează-ți progresul",
     savePlanHeading: "Salvează-ți planul",
     savePlanLine: "Ca planul și abonamentul tău să te urmeze pe un telefon nou, iar mesele tale să fie păstrate.",
     signInMealHeading: "Conectează-te pentru a nota această masă",
@@ -511,14 +570,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Politica de confidențialitate",
     consentMarketing: "Trimite-mi sfaturi și noutăți de la eait",
     errorTerms: "Acceptă Termenii și Politica de confidențialitate ca să continui.",
-
   },
+
+
   cs: {
     startCta: "Sestavit můj plán",
     haveAccountCta: "Už mám účet",
     continueWith: "Pokračovat přes {provider}",
     continueEmail: "Pokračovat přes e-mail",
     signUpHeading: "Vyfoť, co jíš, a dostaneš poctivou odpověď",
+    saveHeading: "Ulož si svůj pokrok",
     savePlanHeading: "Ulož si svůj plán",
     savePlanLine: "Aby s tebou tvůj plán i předplatné přešly na nový telefon a tvá jídla zůstala uložená.",
     signInMealHeading: "Přihlas se a zapiš si toto jídlo",
@@ -527,14 +588,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Zásady ochrany osobních údajů",
     consentMarketing: "Chci dostávat tipy a novinky od eait",
     errorTerms: "Pro pokračování odsouhlas Podmínky a Zásady ochrany osobních údajů.",
-
   },
+
+
   hi: {
     startCta: "मेरा प्लान बनाएँ",
     haveAccountCta: "मेरा पहले से अकाउंट है",
     continueWith: "{provider} के साथ जारी रखें",
     continueEmail: "ईमेल के साथ जारी रखें",
     signUpHeading: "अपने खाने की फ़ोटो लें, ईमानदार जवाब पाएँ",
+    saveHeading: "अपनी प्रगति सेव करें",
     savePlanHeading: "अपना प्लान सेव करें",
     savePlanLine: "ताकि आपका प्लान और आपकी सदस्यता नए फ़ोन पर आपके साथ चले, और आपके भोजन सुरक्षित रहें।",
     signInMealHeading: "इस भोजन को दर्ज करने के लिए साइन इन करें",
@@ -543,14 +606,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "गोपनीयता नीति",
     consentMarketing: "मुझे eait से सुझाव और नए फ़ीचर भेजें",
     errorTerms: "जारी रखने के लिए शर्तों और गोपनीयता नीति से सहमति दें।",
-
   },
+
+
   th: {
     startCta: "สร้างแผนของฉัน",
     haveAccountCta: "ฉันมีบัญชีอยู่แล้ว",
     continueWith: "ดำเนินการต่อด้วย {provider}",
     continueEmail: "ดำเนินการต่อด้วยอีเมล",
     signUpHeading: "ถ่ายรูปสิ่งที่คุณกิน แล้วรับคำตอบที่ตรงไปตรงมา",
+    saveHeading: "บันทึกความคืบหน้าของคุณ",
     savePlanHeading: "บันทึกแพลนของคุณ",
     savePlanLine: "เพื่อให้แพลนและการสมัครสมาชิกของคุณติดตามคุณไปยังโทรศัพท์เครื่องใหม่ และมื้ออาหารของคุณจะถูกเก็บไว้",
     signInMealHeading: "เข้าสู่ระบบเพื่อบันทึกมื้อนี้",
@@ -559,14 +624,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "นโยบายความเป็นส่วนตัว",
     consentMarketing: "ส่งเคล็ดลับและฟีเจอร์ใหม่จาก eait ให้ฉัน",
     errorTerms: "ยอมรับข้อกำหนดและนโยบายความเป็นส่วนตัวเพื่อดำเนินการต่อ",
-
   },
+
+
   sv: {
     startCta: "Bygg min plan",
     haveAccountCta: "Jag har redan ett konto",
     continueWith: "Fortsätt med {provider}",
     continueEmail: "Fortsätt med e-post",
     signUpHeading: "Fotografera det du äter, få ett ärligt svar",
+    saveHeading: "Spara dina framsteg",
     savePlanHeading: "Spara din plan",
     savePlanLine: "Så följer din plan och din prenumeration med till en ny telefon, och dina måltider sparas.",
     signInMealHeading: "Logga in för att spara den här måltiden",
@@ -575,14 +642,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Integritetspolicy",
     consentMarketing: "Skicka mig tips och nya funktioner från eait",
     errorTerms: "Godkänn villkoren och integritetspolicyn för att fortsätta.",
-
   },
+
+
   uk: {
     startCta: "Скласти мій план",
     haveAccountCta: "У мене вже є акаунт",
     continueWith: "Продовжити з {provider}",
     continueEmail: "Продовжити з е-поштою",
     signUpHeading: "Фотографуй, що їси, — отримуй чесну відповідь",
+    saveHeading: "Збережи свій прогрес",
     savePlanHeading: "Збережи свій план",
     savePlanLine: "Так твій план і підписка перейдуть з тобою на новий телефон, а прийоми їжі збережуться.",
     signInMealHeading: "Увійди, щоб записати цей прийом їжі",
@@ -591,14 +660,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Політику конфіденційності",
     consentMarketing: "Надсилати мені поради та новинки eait",
     errorTerms: "Щоб продовжити, прийми Умови та Політику конфіденційності.",
-
   },
+
+
   nl: {
     startCta: "Maak mijn plan",
     haveAccountCta: "Ik heb al een account",
     continueWith: "Doorgaan met {provider}",
     continueEmail: "Doorgaan met e-mail",
     signUpHeading: "Fotografeer wat je eet, krijg een eerlijk antwoord",
+    saveHeading: "Bewaar je voortgang",
     savePlanHeading: "Bewaar je plan",
     savePlanLine: "Zo gaan je plan en je abonnement mee naar een nieuwe telefoon en blijven je maaltijden bewaard.",
     signInMealHeading: "Log in om deze maaltijd vast te leggen",
@@ -607,14 +678,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Privacybeleid",
     consentMarketing: "Stuur me tips en nieuwe functies van eait",
     errorTerms: "Ga akkoord met de Voorwaarden en het Privacybeleid om door te gaan.",
-
   },
+
+
   pl: {
     startCta: "Stwórz mój plan",
     haveAccountCta: "Mam już konto",
     continueWith: "Kontynuuj z {provider}",
     continueEmail: "Kontynuuj przez e-mail",
     signUpHeading: "Zrób zdjęcie tego, co jesz, i dostań rzetelną odpowiedź",
+    saveHeading: "Zapisz swoje postępy",
     savePlanHeading: "Zapisz swój plan",
     savePlanLine: "Dzięki temu Twój plan i subskrypcja przejdą z Tobą na nowy telefon, a posiłki zostaną zachowane.",
     signInMealHeading: "Zaloguj się, by zapisać ten posiłek",
@@ -623,14 +696,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Polityka prywatności",
     consentMarketing: "Wysyłaj mi wskazówki i nowości od eait",
     errorTerms: "Zaakceptuj Regulamin i Politykę prywatności, aby kontynuować.",
-
   },
+
+
   tr: {
     startCta: "Planımı oluştur",
     haveAccountCta: "Zaten bir hesabım var",
     continueWith: "{provider} ile devam et",
     continueEmail: "E-posta ile devam et",
     signUpHeading: "Yediğinin fotoğrafını çek, dürüst bir yanıt al",
+    saveHeading: "İlerlemeni kaydet",
     savePlanHeading: "Planını kaydet",
     savePlanLine: "Böylece planın ve aboneliğin yeni bir telefona taşınır, yemeklerin de korunur.",
     signInMealHeading: "Bu öğünü kaydetmek için giriş yap",
@@ -639,14 +714,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Gizlilik Politikası",
     consentMarketing: "Bana eait'ten ipuçları ve yeni özellikler gönder",
     errorTerms: "Devam etmek için Koşullar'ı ve Gizlilik Politikası'nı kabul et.",
-
   },
+
+
   "zh-Hant": {
     startCta: "建立我的計畫",
     haveAccountCta: "我已經有帳號了",
     continueWith: "使用 {provider} 繼續",
     continueEmail: "使用電子郵件繼續",
     signUpHeading: "拍下你吃的東西，得到誠實的答案",
+    saveHeading: "儲存你的進度",
     savePlanHeading: "儲存你的方案",
     savePlanLine: "這樣，你的方案和訂閱會跟隨你到新機，你的餐食記錄也會保留。",
     signInMealHeading: "登入以記錄這一餐",
@@ -655,14 +732,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "隱私權政策",
     consentMarketing: "寄給我 eait 的小技巧和新功能",
     errorTerms: "請同意使用條款和隱私權政策以繼續。",
-
   },
+
+
   "zh-Hans": {
     startCta: "制定我的计划",
     haveAccountCta: "我已有账户",
     continueWith: "通过{provider}继续",
     continueEmail: "通过邮箱继续",
     signUpHeading: "拍下你吃的东西，获得如实的答案",
+    saveHeading: "保存你的进度",
     savePlanHeading: "保存你的方案",
     savePlanLine: "这样，你的方案和订阅会跟随你到新手机，你的餐食记录也会保留。",
     signInMealHeading: "登录以记录这顿饭",
@@ -671,14 +750,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "隐私政策",
     consentMarketing: "向我发送 eait 的小贴士和新功能",
     errorTerms: "同意条款和隐私政策后即可继续。",
-
   },
+
+
   ko: {
     startCta: "내 플랜 만들기",
     haveAccountCta: "이미 계정이 있어요",
     continueWith: "{provider}로 계속하기",
     continueEmail: "이메일로 계속하기",
     signUpHeading: "먹는 음식을 찍으면 솔직한 답을 드려요",
+    saveHeading: "진행 상황을 저장하세요",
     savePlanHeading: "플랜 저장하기",
     savePlanLine: "새 휴대폰으로 바꿔도 플랜과 구독이 그대로 따라오고, 식사 기록도 보관됩니다.",
     signInMealHeading: "이 식사를 기록하려면 로그인하세요",
@@ -687,14 +768,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "개인정보 처리방침",
     consentMarketing: "eait의 팁과 새 기능 소식을 받을게요",
     errorTerms: "계속하려면 이용약관과 개인정보 처리방침에 동의해 주세요.",
-
   },
+
+
   ja: {
     startCta: "プランを作る",
     haveAccountCta: "アカウントをお持ちの方",
     continueWith: "{provider}で続ける",
     continueEmail: "メールで続ける",
     signUpHeading: "食べたものを撮るだけで、正直な答えを",
+    saveHeading: "進捗を保存しましょう",
     savePlanHeading: "プランを保存",
     savePlanLine: "新しいスマホに変えてもプランとサブスクリプションが引き継がれ、食事の記録も残ります。",
     signInMealHeading: "ログインしてこの食事を記録",
@@ -703,14 +786,16 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "プライバシーポリシー",
     consentMarketing: "eaitからヒントや新機能のお知らせを受け取る",
     errorTerms: "続けるには利用規約とプライバシーポリシーに同意してください。",
-
   },
+
+
   "pt-BR": {
     startCta: "Montar meu plano",
     haveAccountCta: "Já tenho uma conta",
     continueWith: "Continuar com {provider}",
     continueEmail: "Continuar com e-mail",
     signUpHeading: "Fotografe o que você come e receba uma resposta honesta",
+    saveHeading: "Salve seu progresso",
     savePlanHeading: "Salve seu plano",
     savePlanLine: "Assim seu plano e sua assinatura vão com você para um novo celular e suas refeições ficam salvas.",
     signInMealHeading: "Entre para registrar esta refeição",
@@ -719,6 +804,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     privacyLink: "Política de Privacidade",
     consentMarketing: "Quero receber dicas e novidades do eait",
     errorTerms: "Aceite os Termos e a Política de Privacidade para continuar.",
+
   },
 };
 

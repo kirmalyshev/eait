@@ -2536,7 +2536,7 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
       // Arriving from the plan, the heading is the one that says what the account is for.
-      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).savePlanHeading));
+      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).saveHeading));
       // The consent line names both documents, in the language's own words — the placeholders a
       // translation could have dropped.
       expect(signupHtml, `${lang}.signup terms`).toContain(escape(signupCopyFor(lang).termsLink));
