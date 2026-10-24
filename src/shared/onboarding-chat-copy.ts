@@ -27,7 +27,7 @@
 
 import { t, type CountForms, type Localized } from "./lang.ts";
 import { FIRST_MEAL_COPY, type FirstMealCopy } from "./first-meal-copy.ts";
-import type { Lang, Struggle } from "./types.ts";
+import type { Lang } from "./types.ts";
 
 /** A card's words; `source` names the study when one is quoted. Mirrors `SupportCard`. */
 export interface CardCopy {
@@ -84,12 +84,6 @@ export interface ChatCopy {
     echo: string;
   };
   /**
-   * The "how it works" beat after the goal — three beats and nothing to answer. `meal` and
-   * `photoAlt` are the words inside the step cards' drawn figures: the demo dish's name and the
-   * viewfinder photo's alt text (the numbers are `HOW_DEMO`'s constants, fixed to the boards).
-   */
-  how: { title: string; steps: [string, string, string]; meal: string; photoAlt: string };
-  /**
    * The unit word beside a wheel's or ruler's big numeral — "32 years". The symbol units (cm,
    * kg, lb, ft, in) are `spellUnit`'s and stay symbols; only the words with no symbol live here.
    * `yearsCount` is the same word as a whole counted template — the age wheel's rows, where
@@ -97,26 +91,28 @@ export interface ChatCopy {
    */
   units: { years: string; yearsCount: CountForms };
   /**
-   * The three beats between the questions, none of which asks anything. `twice` is the one cited
-   * claim (its source line is the study, in every language); `baseline` prints the BMI computed
-   * from the typed height and weight with the band it falls in; `possible` says the target's
-   * distance back, `{delta}` a formatted weight with unit.
+   * The two beats inside the questions, neither of which asks anything. `baseline` prints the BMI
+   * the typed height and weight compute on a neutral bar: the range labels are boundaries, never
+   * category words, and `what` is the whole explanation — "Body mass index" (Kirill, 24 Oct:
+   * nothing else). `prelim` is the mid-journey plan as two rows — "You burn ≈{burn}" → "You eat
+   * {plan}", the gap labelled "your pace"; `keepTitle` is the maintainer's whole headline and
+   * `{delta}` the signed gap between burn and plan.
    */
-  twice: { title: string; sub: string; without: string; with: string; source: string; alt: string };
   baseline: {
-    title: string; bmi: string;
+    title: string; bmi: string; what: string;
     bands: { under: string; healthy: string; over: string; obese: string };
-    verdict: { under: string; healthy: string; above: string };
-    note: string; you: string; body: string; activity: string;
   };
-  possible: { lose: string; gain: string };
+  prelim: {
+    title: string; burn: string; gap: string; eat: string; perDay: string; keepTitle: string;
+  };
   /** Under the age question (05, ieat-app#2050): why it is asked. */
   ageWhy: string;
   /**
-   * The two-ways chart after the struggles pick: the FIRST picked struggle (list order) writes
-   * the caption. `ontrackCaption` owns the choice; this holds the wording of each branch.
+   * The answers said back as numbers, on the screens that follow them (polish §8, §10): the
+   * weight's burn under the activity question, the days' burn under the target. `{rest}` and
+   * `{burn}` are computed kcal, never typed.
    */
-  ontrack: { title: string; captions: Record<Struggle, string> };
+  echo: { rest: string; days: string };
   /**
    * The chart words, shared by every chart the app draws — onboarding's two-ways beat, the plan
    * graph, Progress. DIRECTION's verbatim chart table; `{weight}`/`{month}` filled by the caller.
@@ -245,42 +241,25 @@ const EN: ChatCopy = {
     floorMarker: "never below {floor} · every pace lands here",
     echo: "From {from} to {to}.",
   },
-  how: {
-    title: "How eait works",
-    meal: "Salmon, rice, greens",
-    photoAlt: "A grain bowl in the viewfinder",
-    steps: ["Photograph the plate", "Get honest macros", "See your progress"],
-  },
   units: { years: "years", yearsCount: { one: "{n} year", other: "{n} years" } },
-  twice: {
-    title: "Lose twice as much weight",
-    sub: "People who write down what they eat lose twice as much weight",
-    without: "Without logging",
-    with: "With eait",
-    source: "Hollis et al., Am J Prev Med, 2008",
-    alt: "Without logging: 1×; with eait: 2×",
-  },
   baseline: {
-    title: "Here's your baseline",
-    bmi: "Body Mass Index (BMI)",
-    bands: { under: "UNDERWEIGHT", healthy: "HEALTHY", over: "OVERWEIGHT", obese: "OBESE" },
-    verdict: { under: "Your BMI is below the healthy range", healthy: "Your BMI is in the healthy range", above: "Your BMI is above the healthy range" },
-    note: "Your plan takes it into account.",
-    you: "You",
-    body: "Height · weight",
-    activity: "Activity",
+    title: "Where you're starting",
+    bmi: "BMI",
+    what: "Body mass index",
+    bands: { under: "below 18.5", healthy: "18.5–24.9", over: "25–29.9", obese: "30 and above" },
   },
-  possible: { lose: "Losing {delta}? Realistic, and possible!", gain: "Gaining {delta}? Realistic, and possible!" },
+  prelim: {
+    title: "Your plan",
+    burn: "You burn",
+    gap: "{delta} your pace",
+    eat: "You eat",
+    perDay: "kcal a day",
+    keepTitle: "You burn about {burn}kcal",
+  },
   ageWhy: "Your metabolism changes with age, so we factor that in",
-  ontrack: {
-    title: "Built to keep you on track",
-    captions: {
-      consistency: "A missed day costs nothing. The next one starts at zero.",
-      habits: "Nothing is banned. Every plate gets honest macros.",
-      support: "Ask {coach} anything, any time, in Chat.",
-      busy: "One photo is the whole log.",
-      ideas: "Stuck for dinner? Ask {coach} what fits what's left.",
-    },
+  echo: {
+    rest: "At rest: {rest}kcal a day",
+    days: "Your days burn {burn}kcal",
   },
   chart: {
     byEait: "with eait",

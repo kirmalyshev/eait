@@ -80,6 +80,27 @@ export const STRUGGLES = ["consistency", "habits", "support", "busy", "ideas"] a
 export type Struggle = (typeof STRUGGLES)[number];
 
 /**
+ * "Counted calories before?" — the four answers, in list order (onboarding polish, Oct 2026).
+ * The pick branches the flow: `never` skips the barrier question and rewords the situation one.
+ */
+export const COUNTED_BEFORE = ["never", "stopped", "onoff", "now"] as const;
+export type CountedBefore = (typeof COUNTED_BEFORE)[number];
+
+/**
+ * "What stopped you?" picks, in list order — the stored vocabulary. `creeping` and `not_enough`
+ * are shown only to a maintainer and a gainer respectively (`barrierValues`); the six before them
+ * are offered to everyone the question reaches.
+ */
+export const BARRIERS = [
+  "too_long", "forgot", "invisible", "no_idea", "stressful", "nobody", "creeping", "not_enough",
+] as const;
+export type Barrier = (typeof BARRIERS)[number];
+
+/** "When is logging hardest?" picks, in list order. */
+export const SITUATIONS = ["workdays", "eating_out", "cooking", "snacks", "evenings"] as const;
+export type Situation = (typeof SITUATIONS)[number];
+
+/**
  * Every language the server stores, the model answers in, and the picker offers.
  *
  * IN PICKER ORDER, and English first because it is the one `Localized<T>` requires. The rest are
@@ -135,6 +156,15 @@ export interface Profile {
    * an interruption.
    */
   struggles: Struggle[] | null;
+  /** "Counted calories before?" — null = never asked. Branches the two questions after it. */
+  counted_before: CountedBefore | null;
+  /**
+   * The "what stopped you" and "where logging is hard" picks, stored in LIST order like
+   * `struggles`: `null` is never-asked, `[]` is asked-and-nothing-picked. They order Chat's
+   * starters — the reader the retired `struggles` question fed.
+   */
+  barriers: Barrier[] | null;
+  situations: Situation[] | null;
   /** Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it. */
   streak_goal_days: StreakGoal | null;
   /** Fibre/sugar/sodium goal overrides (#914); null = the default in `micro-goals.ts`. */
