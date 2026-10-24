@@ -8518,7 +8518,7 @@
           },
           "cta": {
             "type": "string",
-            "description": "The primary button — \"Build my plan\"."
+            "description": "The primary button — \"Start\"."
           },
           "signin": {
             "type": "string",
