@@ -48,11 +48,11 @@ export function signUp(v: SignUpView): string {
     .replace("{terms}", docLink(v.termsHref, SIGNUP_COPY.termsLink))
     .replace("{privacy}", docLink(v.privacyHref, SIGNUP_COPY.privacyLink));
   const mark = (id: "apple" | "google") => brandSvg(id === "apple" ? "apple" : "google-signin");
-  return shell(v.fromPlan ? SIGNUP_COPY.savePlanHeading : SIGNUP_COPY.signUpHeading, `${wtop()}
+  return shell(v.fromPlan ? SIGNUP_COPY.saveHeading : SIGNUP_COPY.signUpHeading, `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="sup">
 ${v.fromPlan ? dash("signup", v.lang, { href: "/start/plan", label: pageCopyFor(v.lang).back }) : ""}
-<h1>${escape(v.fromPlan ? SIGNUP_COPY.savePlanHeading : SIGNUP_COPY.signUpHeading)}</h1>
+<h1>${escape(v.fromPlan ? SIGNUP_COPY.saveHeading : SIGNUP_COPY.signUpHeading)}</h1>
 ${v.error ? `<p class="notice" role="alert">${escape(v.error)}</p>` : ""}
 <form id="signup" method="post">
 ${v.providers.map((p) =>

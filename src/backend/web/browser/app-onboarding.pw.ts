@@ -28,7 +28,7 @@ test("the whole W3 walk: plan, sign-up, country, first meal — and back", async
   // ── The sign-up: terms required, marketing optional ─────────────────────────────────────
   await page.getByRole("link", { name: "Continue", exact: true }).click();
   await expect(page).toHaveURL(/\/start\/signup/);
-  await expect(page.getByRole("heading", { name: "Save your plan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Save your progress" })).toBeVisible();
   await expect(page.locator('input[name="terms"]')).not.toBeChecked();
   await expect(page.locator('input[name="marketing"]')).not.toBeChecked();
   // Unticked goes nowhere.
