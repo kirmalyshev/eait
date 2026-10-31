@@ -43,6 +43,15 @@ describe("every language's chat copy", () => {
     }
   });
 
+  it("says the barrier question takes several answers, in every language (ieat-app#2498)", () => {
+    expect(chatCopyFor("en").pickAll).toBe("Pick all that fit");
+    for (const lang of LANGS) {
+      const c = chatCopyFor(lang);
+      expect(c.pickAll.trim(), `${lang}.pickAll`).toBeTruthy();
+      if (lang !== "en") expect(c.pickAll, `${lang}.pickAll is still English`).not.toBe(CHAT_COPY.en.pickAll);
+    }
+  });
+
   it("has every chart word, in every language — the a11y name most of all", () => {
     for (const lang of LANGS) {
       const ch = chatCopyFor(lang).chart;

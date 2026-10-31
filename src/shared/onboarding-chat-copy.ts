@@ -107,6 +107,8 @@ export interface ChatCopy {
   };
   /** Under the age question (05, ieat-app#2050): why it is asked. */
   ageWhy: string;
+  /** Under the barrier question (11b, ieat-app#2498): the rows take several answers. */
+  pickAll: string;
   /**
    * The answers said back as numbers, on the screens that follow them (polish §8, §10): the
    * weight's burn under the activity question, the days' burn under the target. `{rest}` and
@@ -257,6 +259,7 @@ const EN: ChatCopy = {
     keepTitle: "You burn about {burn}kcal",
   },
   ageWhy: "Your metabolism changes with age, so we factor that in",
+  pickAll: "Pick all that fit",
   echo: {
     rest: "At rest: {rest}kcal a day",
     days: "Your days burn {burn}kcal",
@@ -374,6 +377,7 @@ const FR: ChatCopy = {
     keepTitle: "Tu brûles environ {burn}kcal",
   },
   ageWhy: "Ton métabolisme change avec l’âge, on en tient compte",
+  pickAll: "Choisis tout ce qui te correspond",
   echo: {
     rest: "Au repos : {rest}kcal par jour",
     days: "Tes journées brûlent {burn}kcal",
@@ -491,6 +495,7 @@ const DE: ChatCopy = {
     keepTitle: "Du verbrennst etwa {burn}kcal",
   },
   ageWhy: "Dein Stoffwechsel verändert sich mit dem Alter, das rechnen wir ein",
+  pickAll: "Wähle alles, was zutrifft",
   echo: {
     rest: "Im Ruhezustand: {rest}kcal am Tag",
     days: "Deine Tage verbrennen {burn}kcal",
@@ -608,6 +613,7 @@ const IT: ChatCopy = {
     keepTitle: "Bruci circa {burn}kcal",
   },
   ageWhy: "Il tuo metabolismo cambia con l’età, e ne teniamo conto",
+  pickAll: "Scegli tutto ciò che vale per te",
   echo: {
     rest: "A riposo: {rest}kcal al giorno",
     days: "Le tue giornate bruciano {burn}kcal",
@@ -725,6 +731,7 @@ const ES: ChatCopy = {
     keepTitle: "Quemas unas {burn}kcal",
   },
   ageWhy: "Tu metabolismo cambia con la edad, y lo tenemos en cuenta",
+  pickAll: "Elige todo lo que encaje",
   echo: {
     rest: "En reposo: {rest}kcal al día",
     days: "Tus días queman {burn}kcal",
@@ -842,6 +849,7 @@ const VI: ChatCopy = {
     keepTitle: "Bạn đốt khoảng {burn}kcal",
   },
   ageWhy: "Trao đổi chất thay đổi theo tuổi, nên chúng tôi tính cả điều đó",
+  pickAll: "Chọn tất cả những gì đúng với bạn",
   echo: {
     rest: "Lúc nghỉ: {rest}kcal một ngày",
     days: "Những ngày của bạn đốt {burn}kcal",
@@ -959,6 +967,7 @@ const ID: ChatCopy = {
     keepTitle: "Kamu membakar sekitar {burn}kcal",
   },
   ageWhy: "Metabolismemu berubah seiring usia, jadi kami memperhitungkannya",
+  pickAll: "Pilih semua yang sesuai",
   echo: {
     rest: "Saat istirahat: {rest}kcal sehari",
     days: "Harimu membakar {burn}kcal",
@@ -1078,6 +1087,7 @@ const RU: ChatCopy = {
     keepTitle: "Ты сжигаешь около {burn}ккал",
   },
   ageWhy: "С возрастом обмен веществ меняется, мы это учитываем",
+  pickAll: "Выбери всё, что подходит",
   echo: {
     rest: "В покое: {rest}ккал в день",
     days: "Твои дни сжигают {burn}ккал",
@@ -1202,6 +1212,7 @@ const TE: ChatCopy = {
     keepTitle: "మీరు సుమారు {burn} kcal ఖర్చు చేస్తారు",
   },
   ageWhy: "వయసుతో పాటు మీ జీవక్రియ మారుతుంది, అందుకే దాన్ని లెక్కలోకి తీసుకుంటాం",
+  pickAll: "వర్తించేవన్నీ ఎంచుకోండి",
   echo: {
     rest: "విశ్రాంతిలో: రోజుకు {rest} kcal",
     days: "మీ రోజులు {burn} kcal ఖర్చు చేస్తాయి",
@@ -1321,6 +1332,7 @@ const TA: ChatCopy = {
     keepTitle: "நீங்கள் சுமார் {burn} kcal எரிக்கிறீர்கள்",
   },
   ageWhy: "வயதுடன் உங்கள் வளர்சிதை மாற்றம் மாறுகிறது, அதனால் அதைக் கணக்கில் கொள்கிறோம்",
+  pickAll: "பொருந்துபவை அனைத்தையும் தேர்ந்தெடுக்கவும்",
   echo: {
     rest: "ஓய்வில்: ஒரு நாளைக்கு {rest} kcal",
     days: "உங்கள் நாட்கள் {burn} kcal எரிக்கின்றன",
@@ -1440,6 +1452,7 @@ const PA: ChatCopy = {
     keepTitle: "ਤੁਸੀਂ ਲਗਭਗ {burn} kcal ਖ਼ਰਚ ਕਰਦੇ ਹੋ",
   },
   ageWhy: "ਉਮਰ ਨਾਲ ਤੁਹਾਡਾ ਮੈਟਾਬੋਲਿਜ਼ਮ ਬਦਲਦਾ ਹੈ, ਇਸ ਲਈ ਅਸੀਂ ਇਸ ਨੂੰ ਧਿਆਨ ਵਿੱਚ ਰੱਖਦੇ ਹਾਂ",
+  pickAll: "ਜੋ ਵੀ ਢੁਕਦੇ ਹਨ, ਸਾਰੇ ਚੁਣੋ",
   echo: {
     rest: "ਆਰਾਮ ਦੀ ਹਾਲਤ ਵਿੱਚ: {rest} kcal ਪ੍ਰਤੀ ਦਿਨ",
     days: "ਤੁਹਾਡੇ ਦਿਨ {burn} kcal ਖ਼ਰਚ ਕਰਦੇ ਹਨ",
@@ -1559,6 +1572,7 @@ const OR: ChatCopy = {
     keepTitle: "ଆପଣ ପ୍ରାୟ {burn} kcal ଖର୍ଚ୍ଚ କରନ୍ତି",
   },
   ageWhy: "ବୟସ ସହ ଆପଣଙ୍କ ମେଟାବୋଲିଜମ୍ ବଦଳେ, ତେଣୁ ଆମେ ତାହା ହିସାବକୁ ନେଉ",
+  pickAll: "ପ୍ରଯୁଜ୍ୟ ସବୁ ବାଛନ୍ତୁ",
   echo: {
     rest: "ବିଶ୍ରାମରେ: {rest} kcal ପ୍ରତିଦିନ",
     days: "ଆପଣଙ୍କ ଦିନ {burn} kcal ଖର୍ଚ୍ଚ କରେ",
@@ -1678,6 +1692,7 @@ const MR: ChatCopy = {
     keepTitle: "तुम्ही सुमारे {burn} kcal खर्च करता",
   },
   ageWhy: "वयानुसार तुमचा मेटाबॉलिझम बदलतो, म्हणून आम्ही तेही लक्षात घेतो",
+  pickAll: "लागू असलेले सर्व निवडा",
   echo: {
     rest: "विश्रांतीत: दिवसाला {rest} kcal",
     days: "तुमचे दिवस {burn} kcal खर्च करतात",
@@ -1797,6 +1812,7 @@ const ML: ChatCopy = {
     keepTitle: "നിങ്ങൾ ഏകദേശം {burn} kcal ചെലവഴിക്കുന്നു",
   },
   ageWhy: "പ്രായത്തിനനുസരിച്ച് നിങ്ങളുടെ മെറ്റബോളിസം മാറുന്നു, അതിനാൽ ഞങ്ങൾ അത് കണക്കിലെടുക്കുന്നു",
+  pickAll: "ബാധകമായവയെല്ലാം തിരഞ്ഞെടുക്കുക",
   echo: {
     rest: "വിശ്രമത്തിൽ: ദിവസം {rest} kcal",
     days: "നിങ്ങളുടെ ദിവസങ്ങൾ {burn} kcal ചെലവഴിക്കുന്നു",
@@ -1916,6 +1932,7 @@ const KN: ChatCopy = {
     keepTitle: "ನೀವು ಸುಮಾರು {burn} kcal ಖರ್ಚು ಮಾಡುತ್ತೀರಿ",
   },
   ageWhy: "ವಯಸ್ಸಿನೊಂದಿಗೆ ನಿಮ್ಮ ಚಯಾಪಚಯ ಬದಲಾಗುತ್ತದೆ, ಹಾಗಾಗಿ ನಾವು ಅದನ್ನು ಲೆಕ್ಕಕ್ಕೆ ತೆಗೆದುಕೊಳ್ಳುತ್ತೇವೆ",
+  pickAll: "ಅನ್ವಯಿಸುವ ಎಲ್ಲವನ್ನೂ ಆಯ್ಕೆಮಾಡಿ",
   echo: {
     rest: "ವಿಶ್ರಾಂತಿಯಲ್ಲಿ: ದಿನಕ್ಕೆ {rest} kcal",
     days: "ನಿಮ್ಮ ದಿನಗಳು {burn} kcal ಖರ್ಚು ಮಾಡುತ್ತವೆ",
@@ -2035,6 +2052,7 @@ const GU: ChatCopy = {
     keepTitle: "તમે લગભગ {burn} kcal ખર્ચો છો",
   },
   ageWhy: "ઉંમર સાથે તમારું મેટાબોલિઝમ બદલાય છે, તેથી અમે તેને ધ્યાનમાં લઈએ છીએ",
+  pickAll: "લાગુ પડતા બધા પસંદ કરો",
   echo: {
     rest: "આરામની સ્થિતિમાં: {rest} kcal પ્રતિ દિવસ",
     days: "તમારા દિવસો {burn} kcal ખર્ચે છે",
@@ -2154,6 +2172,7 @@ const BN: ChatCopy = {
     keepTitle: "আপনি প্রায় {burn} kcal খরচ করেন",
   },
   ageWhy: "বয়সের সঙ্গে আপনার মেটাবলিজম বদলায়, তাই আমরা সেটা হিসাবে রাখি",
+  pickAll: "যেগুলো মেলে, সবগুলো বেছে নিন",
   echo: {
     rest: "বিশ্রামে: দিনে {rest} kcal",
     days: "আপনার দিনগুলো {burn} kcal খরচ করে",
@@ -2273,6 +2292,7 @@ const PT_PT: ChatCopy = {
     keepTitle: "Gastas cerca de {burn} kcal",
   },
   ageWhy: "O teu metabolismo muda com a idade, por isso temos isso em conta",
+  pickAll: "Escolhe tudo o que se aplica",
   echo: {
     rest: "Em repouso: {rest} kcal por dia",
     days: "Os teus dias gastam {burn} kcal",
@@ -2392,6 +2412,7 @@ const MS: ChatCopy = {
     keepTitle: "Anda membakar kira-kira {burn} kcal",
   },
   ageWhy: "Metabolisme anda berubah mengikut usia, jadi kami mengambil kira perkara itu",
+  pickAll: "Pilih semua yang berkenaan",
   echo: {
     rest: "Ketika rehat: {rest} kcal sehari",
     days: "Hari-hari anda membakar {burn} kcal",
@@ -2511,6 +2532,7 @@ const CA: ChatCopy = {
     keepTitle: "Cremes unes {burn} kcal",
   },
   ageWhy: "El metabolisme canvia amb l'edat, i ho tenim en compte",
+  pickAll: "Tria tot el que s'hi apliqui",
   echo: {
     rest: "En repòs: {rest} kcal al dia",
     days: "Els teus dies cremen {burn} kcal",
@@ -2630,6 +2652,7 @@ const SL: ChatCopy = {
     keepTitle: "Porabiš približno {burn} kcal",
   },
   ageWhy: "Presnova se s starostjo spreminja, zato to upoštevamo",
+  pickAll: "Izberi vse, kar velja zate",
   echo: {
     rest: "V mirovanju: {rest} kcal na dan",
     days: "Tvoji dnevi porabijo {burn} kcal",
@@ -2749,6 +2772,7 @@ const HR: ChatCopy = {
     keepTitle: "Trošiš oko {burn} kcal",
   },
   ageWhy: "Metabolizam se mijenja s godinama, pa to uračunavamo",
+  pickAll: "Odaberi sve što se odnosi na tebe",
   echo: {
     rest: "U mirovanju: {rest} kcal dnevno",
     days: "Tvoji dani troše {burn} kcal",
@@ -2868,6 +2892,7 @@ const SK: ChatCopy = {
     keepTitle: "Spáliš asi {burn} kcal",
   },
   ageWhy: "Metabolizmus sa s vekom mení, preto to zohľadňujeme",
+  pickAll: "Vyber všetko, čo sa ťa týka",
   echo: {
     rest: "V pokoji: {rest} kcal denne",
     days: "Tvoje dni spália {burn} kcal",
@@ -2987,6 +3012,7 @@ const NO: ChatCopy = {
     keepTitle: "Du forbrenner rundt {burn} kcal",
   },
   ageWhy: "Stoffskiftet endrer seg med alderen, så vi regner det inn",
+  pickAll: "Velg alt som passer",
   echo: {
     rest: "I hvile: {rest} kcal om dagen",
     days: "Dagene dine forbrenner {burn} kcal",
@@ -3106,6 +3132,7 @@ const FI: ChatCopy = {
     keepTitle: "Kulutat noin {burn} kcal",
   },
   ageWhy: "Aineenvaihdunta muuttuu iän myötä, joten otamme sen huomioon",
+  pickAll: "Valitse kaikki sopivat",
   echo: {
     rest: "Levossa: {rest} kcal päivässä",
     days: "Päiväsi kuluttavat {burn} kcal",
@@ -3225,6 +3252,7 @@ const DA: ChatCopy = {
     keepTitle: "Du forbrænder cirka {burn} kcal",
   },
   ageWhy: "Dit stofskifte ændrer sig med alderen, så det regner vi med",
+  pickAll: "Vælg alt, der passer",
   echo: {
     rest: "I hvile: {rest} kcal om dagen",
     days: "Dine dage forbrænder {burn} kcal",
@@ -3344,6 +3372,7 @@ const HU: ChatCopy = {
     keepTitle: "Nagyjából {burn} kcal-t égetsz el",
   },
   ageWhy: "Az anyagcseréd az életkorral változik, ezt is beszámítjuk",
+  pickAll: "Jelöld be mindet, ami illik rád",
   echo: {
     rest: "Nyugalomban: napi {rest} kcal",
     days: "A napjaid elégetnek {burn} kcal-t",
@@ -3463,6 +3492,7 @@ const EL: ChatCopy = {
     keepTitle: "Καίς περίπου {burn} kcal",
   },
   ageWhy: "Ο μεταβολισμός σου αλλάζει με την ηλικία, γι' αυτό το υπολογίζουμε",
+  pickAll: "Διάλεξε όσα ισχύουν",
   echo: {
     rest: "Σε ηρεμία: {rest} kcal την ημέρα",
     days: "Οι μέρες σου καίνε {burn} kcal",
@@ -3582,6 +3612,7 @@ const RO: ChatCopy = {
     keepTitle: "Arzi cam {burn} kcal",
   },
   ageWhy: "Metabolismul se schimbă odată cu vârsta, așa că ținem cont de asta",
+  pickAll: "Alege tot ce ți se potrivește",
   echo: {
     rest: "În repaus: {rest} kcal pe zi",
     days: "Zilele tale ard {burn} kcal",
@@ -3701,6 +3732,7 @@ const CS: ChatCopy = {
     keepTitle: "Spálíš zhruba {burn} kcal",
   },
   ageWhy: "S věkem se mění metabolismus, a tak s tím počítáme",
+  pickAll: "Vyber všechno, co se tě týká",
   echo: {
     rest: "V klidu: {rest} kcal denně",
     days: "Tvoje dny spálí {burn} kcal",
@@ -3820,6 +3852,7 @@ const HI: ChatCopy = {
     keepTitle: "आप लगभग {burn} kcal खर्च करते हैं",
   },
   ageWhy: "उम्र के साथ आपका मेटाबॉलिज़्म बदलता है, इसलिए हम इसे ध्यान में रखते हैं",
+  pickAll: "जो भी लागू हों, सब चुनें",
   echo: {
     rest: "आराम की स्थिति में: {rest} kcal प्रति दिन",
     days: "आपके दिन {burn} kcal खर्च करते हैं",
@@ -3939,6 +3972,7 @@ const TH: ChatCopy = {
     keepTitle: "คุณเผาผลาญประมาณ {burn} kcal",
   },
   ageWhy: "การเผาผลาญเปลี่ยนไปตามอายุ เราจึงนำมาคำนวณด้วย",
+  pickAll: "เลือกได้ทุกข้อที่ตรงกับคุณ",
   echo: {
     rest: "ขณะพัก: {rest} kcal ต่อวัน",
     days: "วันของคุณเผาผลาญ {burn} kcal",
@@ -4058,6 +4092,7 @@ const SV: ChatCopy = {
     keepTitle: "Du förbränner cirka {burn} kcal",
   },
   ageWhy: "Ämnesomsättningen förändras med åldern, så vi räknar med det",
+  pickAll: "Välj allt som stämmer",
   echo: {
     rest: "I vila: {rest} kcal per dag",
     days: "Dina dagar förbränner {burn} kcal",
@@ -4177,6 +4212,7 @@ const UK: ChatCopy = {
     keepTitle: "Ти спалюєш близько {burn} ккал",
   },
   ageWhy: "З віком обмін речовин змінюється, тож ми це враховуємо",
+  pickAll: "Обери все, що підходить",
   echo: {
     rest: "У спокої: {rest} ккал на день",
     days: "Твої дні спалюють {burn} ккал",
@@ -4296,6 +4332,7 @@ const NL: ChatCopy = {
     keepTitle: "Je verbrandt ongeveer {burn} kcal",
   },
   ageWhy: "Je stofwisseling verandert met de leeftijd, dus daar rekenen we mee",
+  pickAll: "Kies alles wat past",
   echo: {
     rest: "In rust: {rest} kcal per dag",
     days: "Je dagen verbranden {burn} kcal",
@@ -4415,6 +4452,7 @@ const PL: ChatCopy = {
     keepTitle: "Spalasz około {burn} kcal",
   },
   ageWhy: "Metabolizm zmienia się z wiekiem, więc to uwzględniamy",
+  pickAll: "Wybierz wszystko, co pasuje",
   echo: {
     rest: "W spoczynku: {rest} kcal dziennie",
     days: "Twoje dni spalają {burn} kcal",
@@ -4534,6 +4572,7 @@ const TR: ChatCopy = {
     keepTitle: "Yaklaşık {burn} kcal yakarsın",
   },
   ageWhy: "Metabolizman yaşla değişir, biz de bunu hesaba katarız",
+  pickAll: "Uyanların hepsini seç",
   echo: {
     rest: "Dinlenirken: günde {rest} kcal",
     days: "Günlerin {burn} kcal yakar",
@@ -4653,6 +4692,7 @@ const ZH_HANT: ChatCopy = {
     keepTitle: "你消耗約 {burn} 大卡",
   },
   ageWhy: "你的代謝會隨年齡改變，所以我們把它納入計算",
+  pickAll: "符合的都可以選",
   echo: {
     rest: "靜止時：每天 {rest} 大卡",
     days: "你的日子消耗 {burn} 大卡",
@@ -4772,6 +4812,7 @@ const ZH_HANS: ChatCopy = {
     keepTitle: "你消耗约 {burn} 千卡",
   },
   ageWhy: "代谢会随年龄变化，所以我们会把它考虑进去",
+  pickAll: "符合的都可以选",
   echo: {
     rest: "静息时：每天{rest}千卡",
     days: "你的日子消耗 {burn} 千卡",
@@ -4891,6 +4932,7 @@ const KO: ChatCopy = {
     keepTitle: "하루에 약 {burn}kcal를 써요",
   },
   ageWhy: "나이에 따라 대사가 달라지니 그만큼 반영해요",
+  pickAll: "해당하는 것을 모두 골라 주세요",
   echo: {
     rest: "휴식 중: 하루 {rest}kcal",
     days: "하루에는 {burn}kcal를 써요",
@@ -5010,6 +5052,7 @@ const JA: ChatCopy = {
     keepTitle: "あなたは約{burn}kcalを消費します",
   },
   ageWhy: "代謝は年齢とともに変わるので、それも計算に入れます",
+  pickAll: "当てはまるものをすべて選んでください",
   echo: {
     rest: "安静時：1日{rest}kcal",
     days: "あなたの一日は{burn}kcalを消費します",
@@ -5129,6 +5172,7 @@ const PT_BR: ChatCopy = {
     keepTitle: "Você gasta cerca de {burn} kcal",
   },
   ageWhy: "Seu metabolismo muda com a idade, por isso levamos isso em conta",
+  pickAll: "Escolha tudo o que se aplica",
   echo: {
     rest: "Em repouso: {rest} kcal por dia",
     days: "Seus dias gastam {burn} kcal",
